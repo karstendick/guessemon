@@ -244,4 +244,4 @@ export interface PokemonImages {
   pokemonName: string;
   imagesDir: string;
   imageFiles: ImageFile[];
-} 
+}

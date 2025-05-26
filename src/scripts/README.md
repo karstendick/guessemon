@@ -43,11 +43,12 @@ data/
         └── ...
 ```
 
-*Note: Additional image types (sprites, dream world, etc.) are downloaded only when specifically requested.*
+_Note: Additional image types (sprites, dream world, etc.) are downloaded only when specifically requested._
 
 ## Usage
 
 ### Run all data fetching (recommended for first run):
+
 ```bash
 npm run fetch-pokemon
 ```
@@ -55,21 +56,25 @@ npm run fetch-pokemon
 ### Run specific parts:
 
 **Fetch just the Pokémon list:**
+
 ```bash
 npm run fetch-pokemon:list
 ```
 
 **Fetch all Pokémon data:**
+
 ```bash
 npm run fetch-pokemon:pokemon
 ```
 
 **Download Pokémon images (official artwork only - default):**
+
 ```bash
 npm run fetch-pokemon:images
 ```
 
 **Download different image types:**
+
 ```bash
 # All available image types
 npm run fetch-pokemon:images:all
@@ -85,11 +90,13 @@ npm run fetch-pokemon:images -- official-artwork front-default
 ```
 
 **Fetch API endpoint lists (types, abilities, moves, etc.):**
+
 ```bash
 npm run fetch-pokemon:lists
 ```
 
 **Show cache statistics:**
+
 ```bash
 npm run fetch-pokemon:stats
 ```
@@ -101,15 +108,18 @@ The script can download various types of images for each Pokémon. **By default,
 ### Available Image Types
 
 **High-Quality Artwork (default)**
+
 - `official-artwork` - Official high-resolution artwork (PNG, ~500KB each)
 
 **Basic Sprites (optional)**
+
 - `front-default` - Default front view sprite
 - `front-female` - Female variant sprite (if different)
 - `back-default` - Default back view sprite
 - `back-female` - Female back view sprite (if different)
 
 **Additional Artwork (optional)**
+
 - `dream-world` - Dream World vector artwork (SVG)
 - `home-default` - Pokémon HOME style sprite
 
@@ -135,6 +145,7 @@ npm run fetch-pokemon:images:all
 The script fetches Pokémon data from the `/pokemon/{id}` endpoint:
 
 ### Pokemon Data
+
 - Basic stats (HP, Attack, Defense, etc.)
 - Types, abilities, moves
 - Sprites and images
@@ -144,14 +155,14 @@ The script fetches Pokémon data from the `/pokemon/{id}` endpoint:
 ## Performance
 
 - **Total Pokémon**: ~1300+ (as of 2024)
-- **Estimated time**: 
+- **Estimated time**:
   - Data only: 20-30 minutes
   - Data + Images (official artwork only): 15-25 minutes
   - Data + All image types: 30-45 minutes
 - **API rate limit**: 100ms delay between requests
 - **Retry logic**: 3 attempts with exponential backoff
 - **Cache**: Subsequent runs are much faster (only fetches missing data/images)
-- **Image storage**: 
+- **Image storage**:
   - Official artwork only: ~150-300MB
   - All image types: ~300-500MB
 
@@ -189,15 +200,18 @@ const pikachu = await fetcher.fetchPokemon(25); // Pikachu's ID (includes image 
 ## File Format
 
 All Pokémon files are saved with the format `{id}-{name}.json`:
+
 - `1-bulbasaur.json` - Easy to sort numerically
 - `25-pikachu.json` - Clear identification
 - `150-mewtwo.json` - Consistent naming
 
 Images are organized in directories matching the same format:
+
 - `data/images/pokemon/1-bulbasaur/` - All Bulbasaur images
 - `data/images/pokemon/25-pikachu/` - All Pikachu images
 
 This format makes it easy to:
+
 - Sort files by Pokémon ID
 - Quickly identify Pokémon by name
 - Maintain consistent file organization
@@ -205,4 +219,4 @@ This format makes it easy to:
 
 ## API Documentation
 
-For more details about the data structure, see the [PokéAPI documentation](https://pokeapi.co/docs/v2). 
+For more details about the data structure, see the [PokéAPI documentation](https://pokeapi.co/docs/v2).
