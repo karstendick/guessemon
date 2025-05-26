@@ -11,6 +11,10 @@
     "fetch-pokemon": "tsx src/scripts/fetch-pokemon-data.ts",
     "fetch-pokemon:list": "tsx src/scripts/fetch-pokemon-data.ts list",
     "fetch-pokemon:pokemon": "tsx src/scripts/fetch-pokemon-data.ts pokemon",
+    "fetch-pokemon:images": "tsx src/scripts/fetch-pokemon-data.ts images",
+    "fetch-pokemon:images:all": "tsx src/scripts/fetch-pokemon-data.ts images official-artwork front-default back-default front-female back-female dream-world home-default",
+    "fetch-pokemon:images:sprites": "tsx src/scripts/fetch-pokemon-data.ts images front-default back-default front-female back-female",
+    "fetch-pokemon:images:artwork": "tsx src/scripts/fetch-pokemon-data.ts images official-artwork dream-world",
     "fetch-pokemon:additional": "tsx src/scripts/fetch-pokemon-data.ts additional",
     "fetch-pokemon:stats": "tsx src/scripts/fetch-pokemon-data.ts stats",
     "pokemon-example": "tsx src/scripts/example-usage.ts"

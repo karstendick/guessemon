@@ -130,6 +130,48 @@ class PokemonDataFetcher {
     }
   }
 
+  private async downloadImage(imageUrl: string, localPath: string): Promise<boolean> {
+    try {
+      // Check if image already exists
+      if (await this.fileExists(localPath)) {
+        return true;
+      }
+
+      console.log(`Downloading image: ${imageUrl}`);
+      const response = await fetch(imageUrl);
+      
+      if (!response.ok) {
+        console.warn(`Failed to download image: ${imageUrl} (${response.status})`);
+        return false;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      
+      // Ensure directory exists
+      const dir = path.dirname(localPath);
+      await this.ensureDirectoryExists(dir);
+      
+      // Save image
+      await fs.writeFile(localPath, buffer);
+      console.log(`Saved image: ${localPath}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`Error downloading image ${imageUrl}:`, error);
+      return false;
+    }
+  }
+
+  private getImagePath(pokemonId: number, pokemonName: string, imageType: string, imageUrl: string): string {
+    // Extract file extension from URL
+    const urlParts = imageUrl.split('.');
+    const extension = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params
+    
+    // Create organized directory structure: data/images/pokemon/{id}-{name}/{imageType}.{ext}
+    return path.join(DATA_DIR, 'images', 'pokemon', `${pokemonId}-${pokemonName}`, `${imageType}.${extension}`);
+  }
+
   private getLocalPath(apiUrl: string, pokemonData?: { id: number; name: string }): string {
     // Convert API URL to local file path
     const urlPath = apiUrl.replace(BASE_URL, '').replace(/\/$/, '');
@@ -194,7 +236,12 @@ class PokemonDataFetcher {
         const existingPath = path.join(pokemonDir, existingFile);
         console.log(`Loading cached Pokémon: ${id} from ${existingFile}`);
         const cached = await fs.readFile(existingPath, 'utf-8');
-        return JSON.parse(cached);
+        const pokemon = JSON.parse(cached);
+        
+        // Download images if they don't exist yet
+        await this.downloadPokemonImages(pokemon);
+        
+        return pokemon;
       }
     } catch (error) {
       // Directory doesn't exist yet, continue with fetch
@@ -207,6 +254,10 @@ class PokemonDataFetcher {
     // Save with id-name format
     const localPath = this.getLocalPath(url, { id: pokemon.id, name: pokemon.name });
     await this.saveToFile(pokemon, localPath);
+    
+    // Download images
+    await this.downloadPokemonImages(pokemon);
+    
     await this.delay(DELAY_BETWEEN_REQUESTS);
     
     return pokemon;
@@ -291,8 +342,50 @@ class PokemonDataFetcher {
     }
   }
 
+  async downloadAllPokemonImages(imageTypes: string[] = ['official-artwork']): Promise<void> {
+    console.log('Downloading images for all cached Pokémon...');
+    
+    const pokemonDir = path.join(DATA_DIR, 'api', 'v2', 'pokemon');
+    
+    try {
+      const files = await fs.readdir(pokemonDir);
+      const pokemonFiles = files.filter(file => file.endsWith('.json'));
+      
+      console.log(`Found ${pokemonFiles.length} cached Pokémon files`);
+      console.log(`Image types to download: ${imageTypes.join(', ')}`);
+      
+      for (let i = 0; i < pokemonFiles.length; i++) {
+        const file = pokemonFiles[i];
+        const progress = `${i + 1}/${pokemonFiles.length}`;
+        
+        try {
+          console.log(`[${progress}] Processing images for ${file}...`);
+          
+          const pokemonPath = path.join(pokemonDir, file);
+          const pokemonData = JSON.parse(await fs.readFile(pokemonPath, 'utf-8'));
+          
+          await this.downloadPokemonImages(pokemonData, imageTypes);
+          
+          // Progress update every 25 Pokémon
+          if ((i + 1) % 25 === 0) {
+            console.log(`Progress: ${i + 1}/${pokemonFiles.length} Pokémon images processed`);
+          }
+          
+        } catch (error) {
+          console.error(`Failed to download images for ${file}:`, error);
+          // Continue with the next Pokémon instead of stopping
+        }
+      }
+      
+      console.log('Finished downloading all Pokémon images!');
+    } catch (error) {
+      console.error('No cached Pokémon data found. Run "npm run fetch-pokemon:pokemon" first.');
+    }
+  }
+
   async getStats(): Promise<void> {
     const dataPath = path.join(DATA_DIR, 'api', 'v2');
+    const imagesPath = path.join(DATA_DIR, 'images', 'pokemon');
     
     try {
       const files = await fs.readdir(dataPath, { recursive: true });
@@ -316,10 +409,110 @@ class PokemonDataFetcher {
       Object.entries(counts).forEach(([type, count]) => {
         console.log(`${type}: ${count}`);
       });
+
+      // Count images
+      try {
+        const imageDirs = await fs.readdir(imagesPath);
+        const pokemonImageDirs = imageDirs.filter(dir => dir.includes('-'));
+        
+        let totalImages = 0;
+        for (const dir of pokemonImageDirs) {
+          const dirPath = path.join(imagesPath, dir);
+          const imageFiles = await fs.readdir(dirPath);
+          totalImages += imageFiles.length;
+        }
+        
+        console.log(`\n=== Image Statistics ===`);
+        console.log(`Pokémon with images: ${pokemonImageDirs.length}`);
+        console.log(`Total images: ${totalImages}`);
+        
+      } catch (error) {
+        console.log('\n=== Image Statistics ===');
+        console.log('No images cached yet.');
+      }
       
     } catch (error) {
       console.log('No cache data found yet.');
     }
+  }
+
+  async downloadPokemonImages(pokemon: Pokemon, imageTypes: string[] = ['official-artwork']): Promise<void> {
+    const { id, name, sprites } = pokemon;
+    
+    console.log(`Downloading images for ${name} (#${id})...`);
+    
+    const downloadPromises: Promise<boolean>[] = [];
+
+    // Download based on specified image types
+    for (const imageType of imageTypes) {
+      switch (imageType) {
+        case 'front-default':
+          if (sprites.front_default) {
+            const localPath = this.getImagePath(id, name, 'front-default', sprites.front_default);
+            downloadPromises.push(this.downloadImage(sprites.front_default, localPath));
+          }
+          break;
+          
+        case 'front-female':
+          if (sprites.front_female) {
+            const localPath = this.getImagePath(id, name, 'front-female', sprites.front_female);
+            downloadPromises.push(this.downloadImage(sprites.front_female, localPath));
+          }
+          break;
+          
+        case 'back-default':
+          if (sprites.back_default) {
+            const localPath = this.getImagePath(id, name, 'back-default', sprites.back_default);
+            downloadPromises.push(this.downloadImage(sprites.back_default, localPath));
+          }
+          break;
+          
+        case 'back-female':
+          if (sprites.back_female) {
+            const localPath = this.getImagePath(id, name, 'back-female', sprites.back_female);
+            downloadPromises.push(this.downloadImage(sprites.back_female, localPath));
+          }
+          break;
+          
+        case 'official-artwork':
+          if (sprites.other?.['official-artwork']?.front_default) {
+            const artworkUrl = sprites.other['official-artwork'].front_default;
+            const localPath = this.getImagePath(id, name, 'official-artwork', artworkUrl);
+            downloadPromises.push(this.downloadImage(artworkUrl, localPath));
+          }
+          break;
+          
+        case 'dream-world':
+          if (sprites.other?.dream_world?.front_default) {
+            const dreamUrl = sprites.other.dream_world.front_default;
+            const localPath = this.getImagePath(id, name, 'dream-world', dreamUrl);
+            downloadPromises.push(this.downloadImage(dreamUrl, localPath));
+          }
+          break;
+          
+        case 'home-default':
+          if (sprites.other?.home?.front_default) {
+            const homeUrl = sprites.other.home.front_default;
+            const localPath = this.getImagePath(id, name, 'home-default', homeUrl);
+            downloadPromises.push(this.downloadImage(homeUrl, localPath));
+          }
+          break;
+          
+        default:
+          console.warn(`Unknown image type: ${imageType}`);
+          break;
+      }
+    }
+
+    // Wait for all downloads to complete
+    const results = await Promise.all(downloadPromises);
+    const successCount = results.filter(success => success).length;
+    const totalCount = results.length;
+    
+    console.log(`Downloaded ${successCount}/${totalCount} images for ${name}`);
+    
+    // Add delay to be respectful to the image servers
+    await this.delay(DELAY_BETWEEN_REQUESTS);
   }
 }
 
@@ -330,6 +523,10 @@ async function main() {
   const args = process.argv.slice(2);
   const command = args[0] || 'all';
   
+  // Parse image types from command line (for images command)
+  // Usage: npm run fetch-pokemon:images -- official-artwork front-default back-default
+  const imageTypes = args.slice(1).length > 0 ? args.slice(1) : ['official-artwork'];
+  
   try {
     switch (command) {
       case 'list':
@@ -337,6 +534,9 @@ async function main() {
         break;
       case 'pokemon':
         await fetcher.fetchAllPokemonData();
+        break;
+      case 'images':
+        await fetcher.downloadAllPokemonImages(imageTypes);
         break;
       case 'additional':
         await fetcher.fetchAdditionalData();

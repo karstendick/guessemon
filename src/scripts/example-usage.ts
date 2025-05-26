@@ -132,6 +132,60 @@ async function fetchSpecificPokemon(id: number) {
   }
 }
 
+// Example 5: Working with Pokemon images
+async function loadPokemonImages(id: number) {
+  try {
+    // Look for Pokemon data first
+    const pokemonDir = path.join(DATA_DIR, 'api', 'v2', 'pokemon');
+    const files = await fs.readdir(pokemonDir);
+    const pokemonFile = files.find(file => file.startsWith(`${id}-`) && file.endsWith('.json'));
+    
+    if (!pokemonFile) {
+      console.error(`Pokemon #${id} not found. Run "npm run fetch-pokemon:pokemon" first.`);
+      return null;
+    }
+    
+    // Extract pokemon name from filename
+    const pokemonName = pokemonFile.replace('.json', '').split('-').slice(1).join('-');
+    
+    // Check for images directory
+    const imagesDir = path.join(DATA_DIR, 'images', 'pokemon', `${id}-${pokemonName}`);
+    
+    try {
+      const imageFiles = await fs.readdir(imagesDir);
+      
+      console.log(`\n=== ${pokemonName.toUpperCase()} IMAGES ===`);
+      console.log(`Images directory: ${imagesDir}`);
+      console.log(`Available images (${imageFiles.length}):`);
+      
+      imageFiles.forEach(file => {
+        const imagePath = path.join(imagesDir, file);
+        console.log(`  ${file} -> ${imagePath}`);
+      });
+      
+      return {
+        pokemonId: id,
+        pokemonName,
+        imagesDir,
+        imageFiles: imageFiles.map(file => ({
+          name: file,
+          path: path.join(imagesDir, file),
+          type: file.split('.')[0] // e.g., 'front-default', 'official-artwork'
+        }))
+      };
+      
+    } catch (error) {
+      console.log(`\n=== ${pokemonName.toUpperCase()} IMAGES ===`);
+      console.log('No images found. Run "npm run fetch-pokemon:images" to download images.');
+      return null;
+    }
+    
+  } catch (error) {
+    console.error(`Error loading images for Pokemon #${id}:`, error);
+    return null;
+  }
+}
+
 // Main demo function
 async function main() {
   console.log('🔍 Pokémon Data Usage Examples\n');
@@ -147,6 +201,9 @@ async function main() {
   
   // Example 4: Fetch new data (will use cache if available)
   await fetchSpecificPokemon(6); // Charizard
+  
+  // Example 5: Load Pokemon images
+  await loadPokemonImages(6); // Charizard images
 }
 
 // Run if this file is executed directly
@@ -158,5 +215,6 @@ export {
   loadPokemonList,
   loadPokemonById,
   findPokemonByType,
-  fetchSpecificPokemon
+  fetchSpecificPokemon,
+  loadPokemonImages
 }; 
