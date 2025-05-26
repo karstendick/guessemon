@@ -84,9 +84,9 @@ npm run fetch-pokemon:images:artwork
 npm run fetch-pokemon:images -- official-artwork front-default
 ```
 
-**Fetch additional data (types, abilities, moves, etc.):**
+**Fetch API endpoint lists (types, abilities, moves, etc.):**
 ```bash
-npm run fetch-pokemon:additional
+npm run fetch-pokemon:lists
 ```
 
 **Show cache statistics:**

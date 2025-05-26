@@ -3,7 +3,11 @@ import path from 'path';
 import type { 
   NamedAPIResource, 
   APIResourceList, 
-  Pokemon
+  Pokemon,
+  PokemonSpecies,
+  EvolutionChain,
+  TypeData,
+  Generation
 } from '../types/pokemon.js';
 
 // Base configuration
@@ -176,6 +180,9 @@ class PokemonDataFetcher {
         // Download images if they don't exist yet
         await this.downloadPokemonImages(pokemon);
         
+        // Fetch associated data if not already cached
+        await this.fetchPokemonAssociatedData(pokemon);
+        
         return pokemon;
       }
     } catch {
@@ -193,9 +200,102 @@ class PokemonDataFetcher {
     // Download images
     await this.downloadPokemonImages(pokemon);
     
+    // Fetch all associated data
+    await this.fetchPokemonAssociatedData(pokemon);
+    
     await this.delay(DELAY_BETWEEN_REQUESTS);
     
     return pokemon;
+  }
+
+  async fetchPokemonAssociatedData(pokemon: Pokemon): Promise<void> {
+    console.log(`Fetching associated data for ${pokemon.name}...`);
+    
+    // Fetch species data
+    const species = await this.fetchPokemonSpecies(pokemon.species.url);
+    
+    // Fetch evolution chain data
+    if (species.evolution_chain.url) {
+      await this.fetchEvolutionChain(species.evolution_chain.url);
+    }
+    
+    // Fetch type effectiveness data for each type
+    for (const typeInfo of pokemon.types) {
+      await this.fetchTypeData(typeInfo.type.url);
+    }
+    
+    // Fetch generation data
+    if (species.generation.url) {
+      await this.fetchGenerationData(species.generation.url);
+    }
+  }
+
+  async fetchPokemonSpecies(speciesUrl: string): Promise<PokemonSpecies> {
+    const localPath = this.getLocalPath(speciesUrl);
+    
+    // Check if already cached
+    if (await this.fileExists(localPath)) {
+      const cached = await fs.readFile(localPath, 'utf-8');
+      return JSON.parse(cached) as PokemonSpecies;
+    }
+    
+    console.log(`Fetching species data: ${speciesUrl}`);
+    const species = await this.fetchWithRetry<PokemonSpecies>(speciesUrl);
+    await this.saveToFile(species, localPath);
+    await this.delay(DELAY_BETWEEN_REQUESTS);
+    
+    return species;
+  }
+
+  async fetchEvolutionChain(evolutionChainUrl: string): Promise<EvolutionChain> {
+    const localPath = this.getLocalPath(evolutionChainUrl);
+    
+    // Check if already cached
+    if (await this.fileExists(localPath)) {
+      const cached = await fs.readFile(localPath, 'utf-8');
+      return JSON.parse(cached) as EvolutionChain;
+    }
+    
+    console.log(`Fetching evolution chain: ${evolutionChainUrl}`);
+    const evolutionChain = await this.fetchWithRetry<EvolutionChain>(evolutionChainUrl);
+    await this.saveToFile(evolutionChain, localPath);
+    await this.delay(DELAY_BETWEEN_REQUESTS);
+    
+    return evolutionChain;
+  }
+
+  async fetchTypeData(typeUrl: string): Promise<TypeData> {
+    const localPath = this.getLocalPath(typeUrl);
+    
+    // Check if already cached
+    if (await this.fileExists(localPath)) {
+      const cached = await fs.readFile(localPath, 'utf-8');
+      return JSON.parse(cached) as TypeData;
+    }
+    
+    console.log(`Fetching type data: ${typeUrl}`);
+    const typeData = await this.fetchWithRetry<TypeData>(typeUrl);
+    await this.saveToFile(typeData, localPath);
+    await this.delay(DELAY_BETWEEN_REQUESTS);
+    
+    return typeData;
+  }
+
+  async fetchGenerationData(generationUrl: string): Promise<Generation> {
+    const localPath = this.getLocalPath(generationUrl);
+    
+    // Check if already cached
+    if (await this.fileExists(localPath)) {
+      const cached = await fs.readFile(localPath, 'utf-8');
+      return JSON.parse(cached) as Generation;
+    }
+    
+    console.log(`Fetching generation data: ${generationUrl}`);
+    const generation = await this.fetchWithRetry<Generation>(generationUrl);
+    await this.saveToFile(generation, localPath);
+    await this.delay(DELAY_BETWEEN_REQUESTS);
+    
+    return generation;
   }
 
   async fetchAllPokemonData(): Promise<void> {
@@ -233,8 +333,8 @@ class PokemonDataFetcher {
     console.log('Finished fetching all Pokémon data!');
   }
 
-  async fetchAdditionalData(): Promise<void> {
-    console.log('Fetching additional data (types, abilities, moves, etc.)...');
+  async fetchLists(): Promise<void> {
+    console.log('Fetching API endpoint lists (types, abilities, moves, etc.)...');
     
     const endpoints = [
       'type',
@@ -251,7 +351,7 @@ class PokemonDataFetcher {
 
     for (const endpoint of endpoints) {
       try {
-        console.log(`Fetching ${endpoint} data...`);
+        console.log(`Fetching ${endpoint} list...`);
         const url = `${BASE_URL}/${endpoint}?limit=100000`;
         const data: APIResourceList = await this.fetchWithRetry<APIResourceList>(url);
         
@@ -272,8 +372,48 @@ class PokemonDataFetcher {
         
         await this.delay(DELAY_BETWEEN_REQUESTS);
       } catch (error) {
-        console.error(`Failed to fetch ${endpoint} data:`, error);
+        console.error(`Failed to fetch ${endpoint} list:`, error);
       }
+    }
+  }
+
+  async fetchAllAssociatedData(): Promise<void> {
+    console.log('Fetching associated data for all cached Pokémon...');
+    
+    const pokemonDir = path.join(DATA_DIR, 'api', 'v2', 'pokemon');
+    
+    try {
+      const files = await fs.readdir(pokemonDir);
+      const pokemonFiles = files.filter(file => file.endsWith('.json'));
+      
+      console.log(`Found ${String(pokemonFiles.length)} cached Pokémon files`);
+      
+      for (let i = 0; i < pokemonFiles.length; i++) {
+        const file = pokemonFiles[i];
+        const progress = `${String(i + 1)}/${String(pokemonFiles.length)}`;
+        
+        try {
+          console.log(`[${progress}] Processing associated data for ${file}...`);
+          
+          const pokemonPath = path.join(pokemonDir, file);
+          const pokemonData = JSON.parse(await fs.readFile(pokemonPath, 'utf-8')) as Pokemon;
+          
+          await this.fetchPokemonAssociatedData(pokemonData);
+          
+          // Progress update every 25 Pokémon
+          if ((i + 1) % 25 === 0) {
+            console.log(`Progress: ${String(i + 1)}/${String(pokemonFiles.length)} Pokémon processed`);
+          }
+          
+        } catch (error) {
+          console.error(`Failed to fetch associated data for ${file}:`, error);
+          // Continue with the next Pokémon instead of stopping
+        }
+      }
+      
+      console.log('Finished fetching all associated data!');
+    } catch {
+      console.error('No cached Pokémon data found. Run "npm run fetch-pokemon:pokemon" first.');
     }
   }
 
@@ -333,11 +473,29 @@ class PokemonDataFetcher {
       const counts: Record<string, number> = {};
       for (const file of jsonFiles) {
         const filePath = file.toString();
-        if (filePath.includes('/pokemon/')) {
+        // Normalize path separators for cross-platform compatibility
+        const normalizedPath = filePath.replace(/\\/g, '/');
+        
+        if (normalizedPath.includes('pokemon/') && !normalizedPath.includes('pokemon-species/')) {
           counts.pokemon = (counts.pokemon || 0) + 1;
-        } else if (filePath.includes('-list.json')) {
-          const type = path.basename(filePath, '-list.json');
+        } else if (normalizedPath.includes('pokemon-species/')) {
+          counts['pokemon-species'] = (counts['pokemon-species'] || 0) + 1;
+        } else if (normalizedPath.includes('evolution-chain/')) {
+          counts['evolution-chain'] = (counts['evolution-chain'] || 0) + 1;
+        } else if (normalizedPath.includes('type/') && !normalizedPath.includes('-list.json')) {
+          counts.type = (counts.type || 0) + 1;
+        } else if (normalizedPath.includes('generation/') && !normalizedPath.includes('-list.json')) {
+          counts.generation = (counts.generation || 0) + 1;
+        } else if (normalizedPath.includes('-list.json')) {
+          const type = path.basename(normalizedPath, '-list.json');
           counts[`${type}-list`] = (counts[`${type}-list`] || 0) + 1;
+        } else {
+          // Catch any other files we might have missed
+          const dirName = path.dirname(normalizedPath);
+          const baseName = path.basename(dirName);
+          if (baseName && baseName !== 'v2') {
+            counts[`other-${baseName}`] = (counts[`other-${baseName}`] || 0) + 1;
+          }
         }
       }
       
@@ -473,8 +631,11 @@ async function main(): Promise<void> {
       case 'images':
         await fetcher.downloadAllPokemonImages(imageTypes);
         break;
-      case 'additional':
-        await fetcher.fetchAdditionalData();
+      case 'lists':
+        await fetcher.fetchLists();
+        break;
+      case 'associated':
+        await fetcher.fetchAllAssociatedData();
         break;
       case 'stats':
         await fetcher.getStats();
@@ -484,7 +645,7 @@ async function main(): Promise<void> {
         await fetcher.getStats();
         await fetcher.fetchAllPokemonList();
         await fetcher.fetchAllPokemonData();
-        await fetcher.fetchAdditionalData();
+        await fetcher.fetchLists();
         await fetcher.getStats();
         break;
     }
