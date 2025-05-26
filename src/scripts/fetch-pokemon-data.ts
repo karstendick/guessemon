@@ -347,23 +347,32 @@ class PokemonDataFetcher {
 
     console.log(`Fetching data for ${String(pokemonList.length)} Pokémon...`);
 
-    for (let i = 0; i < pokemonList.length; i++) {
-      const pokemon = pokemonList[i];
-      const progress = `${String(i + 1)}/${String(pokemonList.length)}`;
+    let skippedAlternateForms = 0;
+    let processedCount = 0;
 
+    for (const pokemon of pokemonList) {
       try {
-        console.log(`[${progress}] Processing ${pokemon.name}...`);
-
         // Extract ID from URL (e.g., "https://pokeapi.co/api/v2/pokemon/1/" -> 1)
         const pokemonId = parseInt(pokemon.url.split('/').slice(-2, -1)[0], 10);
+
+        // Skip alternate forms (ID >= 10000)
+        if (pokemonId >= 10000) {
+          skippedAlternateForms++;
+          continue;
+        }
+
+        processedCount++;
+        const progress = `${String(processedCount)}/${String(pokemonList.length - skippedAlternateForms)}`;
+
+        console.log(`[${progress}] Processing ${pokemon.name}...`);
 
         // Fetch pokemon data
         await this.fetchPokemon(pokemonId);
 
         // Progress update every 50 Pokémon
-        if ((i + 1) % 50 === 0) {
+        if (processedCount % 50 === 0) {
           console.log(
-            `Progress: ${String(i + 1)}/${String(pokemonList.length)} Pokémon processed`
+            `Progress: ${String(processedCount)}/${String(pokemonList.length - skippedAlternateForms)} Pokémon processed (${String(skippedAlternateForms)} alternate forms skipped)`
           );
         }
       } catch (error) {
@@ -372,7 +381,9 @@ class PokemonDataFetcher {
       }
     }
 
-    console.log('Finished fetching all Pokémon data!');
+    console.log(
+      `Finished fetching all Pokémon data! Processed ${String(processedCount)} main Pokémon, skipped ${String(skippedAlternateForms)} alternate forms.`
+    );
   }
 
   async fetchLists(): Promise<void> {
