@@ -1,81 +1,15 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import type { 
+  NamedAPIResource, 
+  APIResourceList, 
+  Pokemon
+} from '../types/pokemon.js';
 
 // Base configuration
 const BASE_URL = 'https://pokeapi.co/api/v2';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DELAY_BETWEEN_REQUESTS = 100; // milliseconds to be respectful to the API
-
-// Type definitions for PokéAPI responses
-interface NamedAPIResource {
-  name: string;
-  url: string;
-}
-
-interface APIResourceList {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: NamedAPIResource[];
-}
-
-interface Pokemon {
-  id: number;
-  name: string;
-  base_experience: number;
-  height: number;
-  weight: number;
-  abilities: Array<{
-    ability: NamedAPIResource;
-    is_hidden: boolean;
-    slot: number;
-  }>;
-  forms: NamedAPIResource[];
-  game_indices: Array<{
-    game_index: number;
-    version: NamedAPIResource;
-  }>;
-  held_items: Array<{
-    item: NamedAPIResource;
-    version_details: Array<{
-      rarity: number;
-      version: NamedAPIResource;
-    }>;
-  }>;
-  location_area_encounters: string;
-  moves: Array<{
-    move: NamedAPIResource;
-    version_group_details: Array<{
-      level_learned_at: number;
-      move_learn_method: NamedAPIResource;
-      version_group: NamedAPIResource;
-    }>;
-  }>;
-  species: NamedAPIResource;
-  sprites: {
-    back_default: string | null;
-    back_female: string | null;
-    back_shiny: string | null;
-    back_shiny_female: string | null;
-    front_default: string | null;
-    front_female: string | null;
-    front_shiny: string | null;
-    front_shiny_female: string | null;
-    other?: any;
-    versions?: any;
-  };
-  stats: Array<{
-    base_stat: number;
-    effort: number;
-    stat: NamedAPIResource;
-  }>;
-  types: Array<{
-    slot: number;
-    type: NamedAPIResource;
-  }>;
-  order: number;
-  is_default: boolean;
-}
 
 class PokemonDataFetcher {
   private async delay(ms: number): Promise<void> {
@@ -90,19 +24,19 @@ class PokemonDataFetcher {
     }
   }
 
-  private async fetchWithRetry(url: string, maxRetries = 3): Promise<any> {
+  private async fetchWithRetry<T = unknown>(url: string, maxRetries = 3): Promise<T> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`Fetching: ${url} (attempt ${attempt})`);
+        console.log(`Fetching: ${url} (attempt ${String(attempt)})`);
         const response = await fetch(url);
         
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new Error(`HTTP ${String(response.status)}: ${response.statusText}`);
         }
         
-        return await response.json();
+        return await response.json() as T;
       } catch (error) {
-        console.error(`Attempt ${attempt} failed for ${url}:`, error);
+        console.error(`Attempt ${String(attempt)} failed for ${url}:`, error);
         
         if (attempt === maxRetries) {
           throw error;
@@ -112,9 +46,10 @@ class PokemonDataFetcher {
         await this.delay(1000 * Math.pow(2, attempt - 1));
       }
     }
+    throw new Error('All retry attempts failed');
   }
 
-  private async saveToFile(data: any, filePath: string): Promise<void> {
+  private async saveToFile(data: unknown, filePath: string): Promise<void> {
     const dir = path.dirname(filePath);
     await this.ensureDirectoryExists(dir);
     await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
@@ -141,7 +76,7 @@ class PokemonDataFetcher {
       const response = await fetch(imageUrl);
       
       if (!response.ok) {
-        console.warn(`Failed to download image: ${imageUrl} (${response.status})`);
+        console.warn(`Failed to download image: ${imageUrl} (${String(response.status)})`);
         return false;
       }
 
@@ -169,7 +104,7 @@ class PokemonDataFetcher {
     const extension = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params
     
     // Create organized directory structure: data/images/pokemon/{id}-{name}/{imageType}.{ext}
-    return path.join(DATA_DIR, 'images', 'pokemon', `${pokemonId}-${pokemonName}`, `${imageType}.${extension}`);
+    return path.join(DATA_DIR, 'images', 'pokemon', `${String(pokemonId)}-${pokemonName}`, `${imageType}.${extension}`);
   }
 
   private getLocalPath(apiUrl: string, pokemonData?: { id: number; name: string }): string {
@@ -180,7 +115,7 @@ class PokemonDataFetcher {
     if (urlPath.includes('/pokemon/')) {
       if (pokemonData) {
         // Use id-name format: e.g., "1-bulbasaur.json"
-        return path.join(DATA_DIR, 'api', 'v2', 'pokemon', `${pokemonData.id}-${pokemonData.name}.json`);
+        return path.join(DATA_DIR, 'api', 'v2', 'pokemon', `${String(pokemonData.id)}-${pokemonData.name}.json`);
       }
       // Fallback for when we don't have pokemon data yet
       const pokemonId = urlPath.split('/pokemon/')[1];
@@ -198,7 +133,7 @@ class PokemonDataFetcher {
     if (await this.fileExists(listPath)) {
       console.log('Loading cached Pokémon list...');
       const cached = await fs.readFile(listPath, 'utf-8');
-      return JSON.parse(cached);
+      return JSON.parse(cached) as NamedAPIResource[];
     }
 
     console.log('Fetching complete Pokémon list...');
@@ -206,7 +141,7 @@ class PokemonDataFetcher {
     let url: string | null = `${BASE_URL}/pokemon?limit=100000`; // Get all at once
 
     while (url) {
-      const data: APIResourceList = await this.fetchWithRetry(url);
+      const data: APIResourceList = await this.fetchWithRetry<APIResourceList>(url);
       allPokemon.push(...data.results);
       url = data.next;
       
@@ -217,39 +152,39 @@ class PokemonDataFetcher {
 
     // Save the complete list
     await this.saveToFile(allPokemon, listPath);
-    console.log(`Found ${allPokemon.length} Pokémon`);
+    console.log(`Found ${String(allPokemon.length)} Pokémon`);
     
     return allPokemon;
   }
 
   async fetchPokemon(id: number): Promise<Pokemon> {
-    const url = `${BASE_URL}/pokemon/${id}`;
+    const url = `${BASE_URL}/pokemon/${String(id)}`;
     
     // First, try to find existing file with id-name format
     const pokemonDir = path.join(DATA_DIR, 'api', 'v2', 'pokemon');
     try {
       await this.ensureDirectoryExists(pokemonDir);
       const files = await fs.readdir(pokemonDir);
-      const existingFile = files.find(file => file.startsWith(`${id}-`) && file.endsWith('.json'));
+      const existingFile = files.find(file => file.startsWith(`${String(id)}-`) && file.endsWith('.json'));
       
       if (existingFile) {
         const existingPath = path.join(pokemonDir, existingFile);
-        console.log(`Loading cached Pokémon: ${id} from ${existingFile}`);
+        console.log(`Loading cached Pokémon: ${String(id)} from ${existingFile}`);
         const cached = await fs.readFile(existingPath, 'utf-8');
-        const pokemon = JSON.parse(cached);
+        const pokemon = JSON.parse(cached) as Pokemon;
         
         // Download images if they don't exist yet
         await this.downloadPokemonImages(pokemon);
         
         return pokemon;
       }
-    } catch (error) {
+    } catch {
       // Directory doesn't exist yet, continue with fetch
     }
 
     // Fetch from API
-    console.log(`Fetching Pokémon #${id}...`);
-    const pokemon: Pokemon = await this.fetchWithRetry(url);
+    console.log(`Fetching Pokémon #${String(id)}...`);
+    const pokemon = await this.fetchWithRetry<Pokemon>(url);
     
     // Save with id-name format
     const localPath = this.getLocalPath(url, { id: pokemon.id, name: pokemon.name });
@@ -269,24 +204,24 @@ class PokemonDataFetcher {
     // Get the list of all Pokémon
     const pokemonList = await this.fetchAllPokemonList();
     
-    console.log(`Fetching data for ${pokemonList.length} Pokémon...`);
+    console.log(`Fetching data for ${String(pokemonList.length)} Pokémon...`);
     
     for (let i = 0; i < pokemonList.length; i++) {
       const pokemon = pokemonList[i];
-      const progress = `${i + 1}/${pokemonList.length}`;
+      const progress = `${String(i + 1)}/${String(pokemonList.length)}`;
       
       try {
         console.log(`[${progress}] Processing ${pokemon.name}...`);
         
         // Extract ID from URL (e.g., "https://pokeapi.co/api/v2/pokemon/1/" -> 1)
-        const pokemonId = parseInt(pokemon.url.split('/').slice(-2, -1)[0]);
+        const pokemonId = parseInt(pokemon.url.split('/').slice(-2, -1)[0], 10);
         
         // Fetch pokemon data
         await this.fetchPokemon(pokemonId);
         
         // Progress update every 50 Pokémon
         if ((i + 1) % 50 === 0) {
-          console.log(`Progress: ${i + 1}/${pokemonList.length} Pokémon processed`);
+          console.log(`Progress: ${String(i + 1)}/${String(pokemonList.length)} Pokémon processed`);
         }
         
       } catch (error) {
@@ -318,7 +253,7 @@ class PokemonDataFetcher {
       try {
         console.log(`Fetching ${endpoint} data...`);
         const url = `${BASE_URL}/${endpoint}?limit=100000`;
-        const data: APIResourceList = await this.fetchWithRetry(url);
+        const data: APIResourceList = await this.fetchWithRetry<APIResourceList>(url);
         
         const listPath = path.join(DATA_DIR, 'api', 'v2', `${endpoint}-list.json`);
         await this.saveToFile(data.results, listPath);
@@ -351,24 +286,24 @@ class PokemonDataFetcher {
       const files = await fs.readdir(pokemonDir);
       const pokemonFiles = files.filter(file => file.endsWith('.json'));
       
-      console.log(`Found ${pokemonFiles.length} cached Pokémon files`);
+      console.log(`Found ${String(pokemonFiles.length)} cached Pokémon files`);
       console.log(`Image types to download: ${imageTypes.join(', ')}`);
       
       for (let i = 0; i < pokemonFiles.length; i++) {
         const file = pokemonFiles[i];
-        const progress = `${i + 1}/${pokemonFiles.length}`;
+        const progress = `${String(i + 1)}/${String(pokemonFiles.length)}`;
         
         try {
           console.log(`[${progress}] Processing images for ${file}...`);
           
           const pokemonPath = path.join(pokemonDir, file);
-          const pokemonData = JSON.parse(await fs.readFile(pokemonPath, 'utf-8'));
+          const pokemonData = JSON.parse(await fs.readFile(pokemonPath, 'utf-8')) as Pokemon;
           
           await this.downloadPokemonImages(pokemonData, imageTypes);
           
           // Progress update every 25 Pokémon
           if ((i + 1) % 25 === 0) {
-            console.log(`Progress: ${i + 1}/${pokemonFiles.length} Pokémon images processed`);
+            console.log(`Progress: ${String(i + 1)}/${String(pokemonFiles.length)} Pokémon images processed`);
           }
           
         } catch (error) {
@@ -378,7 +313,7 @@ class PokemonDataFetcher {
       }
       
       console.log('Finished downloading all Pokémon images!');
-    } catch (error) {
+    } catch {
       console.error('No cached Pokémon data found. Run "npm run fetch-pokemon:pokemon" first.');
     }
   }
@@ -392,14 +327,14 @@ class PokemonDataFetcher {
       const jsonFiles = files.filter(file => file.toString().endsWith('.json'));
       
       console.log('\n=== Cache Statistics ===');
-      console.log(`Total cached files: ${jsonFiles.length}`);
+      console.log(`Total cached files: ${String(jsonFiles.length)}`);
       
       // Count by type
       const counts: Record<string, number> = {};
       for (const file of jsonFiles) {
         const filePath = file.toString();
         if (filePath.includes('/pokemon/')) {
-          counts['pokemon'] = (counts['pokemon'] || 0) + 1;
+          counts.pokemon = (counts.pokemon || 0) + 1;
         } else if (filePath.includes('-list.json')) {
           const type = path.basename(filePath, '-list.json');
           counts[`${type}-list`] = (counts[`${type}-list`] || 0) + 1;
@@ -407,7 +342,7 @@ class PokemonDataFetcher {
       }
       
       Object.entries(counts).forEach(([type, count]) => {
-        console.log(`${type}: ${count}`);
+        console.log(`${type}: ${String(count)}`);
       });
 
       // Count images
@@ -423,15 +358,15 @@ class PokemonDataFetcher {
         }
         
         console.log(`\n=== Image Statistics ===`);
-        console.log(`Pokémon with images: ${pokemonImageDirs.length}`);
-        console.log(`Total images: ${totalImages}`);
+        console.log(`Pokémon with images: ${String(pokemonImageDirs.length)}`);
+        console.log(`Total images: ${String(totalImages)}`);
         
-      } catch (error) {
+      } catch {
         console.log('\n=== Image Statistics ===');
         console.log('No images cached yet.');
       }
       
-    } catch (error) {
+    } catch {
       console.log('No cache data found yet.');
     }
   }
@@ -439,7 +374,7 @@ class PokemonDataFetcher {
   async downloadPokemonImages(pokemon: Pokemon, imageTypes: string[] = ['official-artwork']): Promise<void> {
     const { id, name, sprites } = pokemon;
     
-    console.log(`Downloading images for ${name} (#${id})...`);
+    console.log(`Downloading images for ${name} (#${String(id)})...`);
     
     const downloadPromises: Promise<boolean>[] = [];
 
@@ -509,7 +444,7 @@ class PokemonDataFetcher {
     const successCount = results.filter(success => success).length;
     const totalCount = results.length;
     
-    console.log(`Downloaded ${successCount}/${totalCount} images for ${name}`);
+    console.log(`Downloaded ${String(successCount)}/${String(totalCount)} images for ${name}`);
     
     // Add delay to be respectful to the image servers
     await this.delay(DELAY_BETWEEN_REQUESTS);
@@ -517,7 +452,7 @@ class PokemonDataFetcher {
 }
 
 // Main execution function
-async function main() {
+async function main(): Promise<void> {
   const fetcher = new PokemonDataFetcher();
   
   const args = process.argv.slice(2);
@@ -561,7 +496,7 @@ async function main() {
 
 // Run if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
+  void main();
 }
 
 export { PokemonDataFetcher }; 
