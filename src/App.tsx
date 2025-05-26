@@ -1,21 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import './App.css';
-
-// Mock questions for now
-const mockQuestions = [
-  'Is your Pokémon a Fire type?',
-  'Does your Pokémon evolve?',
-  'Is your Pokémon from Generation 1?',
-  'Does your Pokémon have wings?',
-  'Is your Pokémon taller than 3 feet?',
-  'Does your Pokémon learn Electric-type moves?',
-  'Is your Pokémon a legendary?',
-  'Does your Pokémon have multiple forms?',
-  'Is your Pokémon primarily blue in color?',
-  'Does your Pokémon live in water?',
-];
-
-type Answer = 'yes' | 'no' | 'unknown';
+import { PokemonGameEngine } from './gameEngine';
+import type { Answer } from './types/pokemon';
 
 interface QuestionAnswer {
   question: string;
@@ -23,28 +9,45 @@ interface QuestionAnswer {
 }
 
 function App() {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [gameEngine] = useState(() => new PokemonGameEngine());
   const [answeredQuestions, setAnsweredQuestions] = useState<QuestionAnswer[]>(
     []
   );
+  const [currentQuestion, setCurrentQuestion] = useState<string>('');
   const [gameStarted, setGameStarted] = useState(false);
+  const [gameComplete, setGameComplete] = useState(false);
+  const [finalGuess, setFinalGuess] = useState<string>('');
+  const [finalGuessId, setFinalGuessId] = useState<number | null>(null);
+  const [remainingCount, setRemainingCount] = useState(0);
   const currentQuestionRef = useRef<HTMLDivElement>(null);
+  const gameResultRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to current question when it changes
   useEffect(() => {
-    if (currentQuestionRef.current && gameStarted) {
+    if (currentQuestionRef.current && gameStarted && !gameComplete) {
       currentQuestionRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
       });
     }
-  }, [answeredQuestions.length, gameStarted]);
+  }, [answeredQuestions.length, gameStarted, gameComplete]);
+
+  // Auto-scroll to game result when game completes
+  useEffect(() => {
+    if (gameResultRef.current && gameComplete) {
+      setTimeout(() => {
+        gameResultRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 300); // Small delay to ensure the element is rendered
+    }
+  }, [gameComplete]);
 
   const handleAnswer = (answer: Answer) => {
-    const currentQuestion = mockQuestions[currentQuestionIndex];
-    console.log(
-      `Question ${(answeredQuestions.length + 1).toString()}: ${currentQuestion} - Answer: ${answer}`
-    );
+    if (!currentQuestion) return;
+
+    console.log(`Question: ${currentQuestion} - Answer: ${answer}`);
 
     // Add the answered question to our list
     setAnsweredQuestions(prev => [
@@ -52,27 +55,45 @@ function App() {
       { question: currentQuestion, answer },
     ]);
 
-    // Move to next question
-    const nextQuestionIndex = (currentQuestionIndex + 1) % mockQuestions.length;
-    setCurrentQuestionIndex(nextQuestionIndex);
+    // Process the answer through the game engine
+    gameEngine.answerQuestion(answer);
 
-    // Check if we've reached 20 questions
-    if (answeredQuestions.length >= 19) {
-      alert('Game over! I would make a guess here based on your answers.');
-      resetGame();
+    // Update the UI based on the new game state
+    updateGameState();
+  };
+
+  const updateGameState = () => {
+    const isComplete = gameEngine.isGameComplete();
+    const nextQuestion = gameEngine.getCurrentQuestionText();
+    const remaining = gameEngine.getRemainingCount();
+
+    setGameComplete(isComplete);
+    setCurrentQuestion(nextQuestion);
+    setRemainingCount(remaining);
+
+    if (isComplete) {
+      const guess = gameEngine.getFinalGuess();
+      if (guess) {
+        setFinalGuess(guess.name);
+        setFinalGuessId(guess.id);
+      }
     }
   };
 
   const resetGame = () => {
-    setCurrentQuestionIndex(0);
     setAnsweredQuestions([]);
     setGameStarted(false);
+    setGameComplete(false);
+    setFinalGuess('');
+    setFinalGuessId(null);
+    setRemainingCount(0);
+    gameEngine.resetGame();
   };
 
   const startGame = () => {
     setGameStarted(true);
-    setCurrentQuestionIndex(0);
-    setAnsweredQuestions([]);
+    gameEngine.initializeGame();
+    updateGameState();
   };
 
   const getAnswerEmoji = (answer: Answer) => {
@@ -97,6 +118,15 @@ function App() {
     }
   };
 
+  const getPokemonImageUrl = (pokemonId: number, pokemonName: string) => {
+    // Use the local cached images from the public directory
+    return `/images/pokemon/${pokemonId.toString()}-${pokemonName}/official-artwork.png`;
+  };
+
+  const formatPokemonName = (name: string) => {
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  };
+
   if (!gameStarted) {
     return (
       <div className="app">
@@ -114,7 +144,10 @@ function App() {
               <ol>
                 <li>Think of any Pokémon in your mind</li>
                 <li>Answer my questions with Yes, No, or I Don't Know</li>
-                <li>I'll try to guess your Pokémon within 20 questions!</li>
+                <li>
+                  I'll try to guess your Pokémon using smart questions about
+                  weight!
+                </li>
               </ol>
             </div>
 
@@ -136,11 +169,17 @@ function App() {
             <span>
               Question {(answeredQuestions.length + 1).toString()} of 20
             </span>
+            <div className="progress-info">
+              <span>Remaining possibilities: {remainingCount.toString()}</span>
+            </div>
             <div className="progress-bar">
               <div
                 className="progress-fill"
                 style={{
-                  width: `${(((answeredQuestions.length + 1) / 20) * 100).toString()}%`,
+                  width: `${(
+                    ((answeredQuestions.length + 1) / 20) *
+                    100
+                  ).toString()}%`,
                 }}
               ></div>
             </div>
@@ -167,51 +206,107 @@ function App() {
           ))}
 
           {/* Current question (interactive) */}
-          <div ref={currentQuestionRef} className="question-card current">
-            <div className="question-header">
-              <span className="question-number">
-                Q{(answeredQuestions.length + 1).toString()}
-              </span>
-            </div>
-            <h2 className="question-text">
-              {mockQuestions[currentQuestionIndex]}
-            </h2>
+          {currentQuestion && !gameComplete && (
+            <div ref={currentQuestionRef} className="question-card current">
+              <div className="question-header">
+                <span className="question-number">
+                  Q{(answeredQuestions.length + 1).toString()}
+                </span>
+              </div>
+              <h2 className="question-text">{currentQuestion}</h2>
 
-            <div className="answer-buttons">
-              <button
-                type="button"
-                className="answer-btn yes-btn"
-                onClick={() => {
-                  handleAnswer('yes');
-                }}
-              >
-                ✅ Yes
-              </button>
-              <button
-                type="button"
-                className="answer-btn no-btn"
-                onClick={() => {
-                  handleAnswer('no');
-                }}
-              >
-                ❌ No
-              </button>
-              <button
-                type="button"
-                className="answer-btn unknown-btn"
-                onClick={() => {
-                  handleAnswer('unknown');
-                }}
-              >
-                🤷 I Don't Know
-              </button>
+              <div className="answer-buttons">
+                <button
+                  type="button"
+                  className="answer-btn yes-btn"
+                  onClick={() => {
+                    handleAnswer('yes');
+                  }}
+                >
+                  ✅ Yes
+                </button>
+                <button
+                  type="button"
+                  className="answer-btn no-btn"
+                  onClick={() => {
+                    handleAnswer('no');
+                  }}
+                >
+                  ❌ No
+                </button>
+                <button
+                  type="button"
+                  className="answer-btn unknown-btn"
+                  onClick={() => {
+                    handleAnswer('unknown');
+                  }}
+                >
+                  🤷 I Don't Know
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Game result (when complete) */}
+          {gameComplete && finalGuess && finalGuessId && (
+            <div ref={gameResultRef} className="game-result">
+              <div className="result-header">
+                <h2>🎉 I think your Pokémon is...</h2>
+              </div>
+              <div className="pokemon-guess">
+                <div className="pokemon-image">
+                  <img
+                    src={getPokemonImageUrl(finalGuessId, finalGuess)}
+                    alt={formatPokemonName(finalGuess)}
+                    onError={e => {
+                      // If the local image fails, replace with a text placeholder
+                      const target = e.target as HTMLImageElement;
+                      const container = target.parentElement;
+                      if (container) {
+                        container.innerHTML = `
+                          <div class="image-placeholder">
+                            <div class="placeholder-text">
+                              <span class="pokemon-icon">🎮</span>
+                              <span class="pokemon-name-fallback">${formatPokemonName(finalGuess)}</span>
+                            </div>
+                          </div>
+                        `;
+                      }
+                    }}
+                  />
+                </div>
+                <div className="pokemon-name">
+                  <h3>{formatPokemonName(finalGuess)}</h3>
+                  <p>#{finalGuessId.toString().padStart(3, '0')}</p>
+                </div>
+              </div>
+              <div className="result-stats">
+                <p>
+                  I used <strong>{answeredQuestions.length}</strong> questions
+                  to find your Pokémon!
+                </p>
+                <p>Binary search on weight is pretty efficient! 🧠</p>
+              </div>
+            </div>
+          )}
+
+          {/* No guess found */}
+          {gameComplete && !finalGuess && (
+            <div ref={gameResultRef} className="game-result">
+              <div className="result-header">
+                <h2>🤔 Hmm...</h2>
+              </div>
+              <div className="no-guess">
+                <p>I couldn't narrow it down to a single Pokémon.</p>
+                <p>Let's try again with a different approach!</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="game-controls">
           <button type="button" className="reset-button" onClick={resetGame}>
-            🔄 Reset Game
+            🔄 {gameComplete ? 'Play Again' : 'Reset Game'}
           </button>
         </div>
       </div>

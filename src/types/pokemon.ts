@@ -56,10 +56,32 @@ export interface PokemonSprites {
 export interface Pokemon {
   id: number;
   name: string;
+  weight: number; // in hectograms (1/10 kg)
+  height: number; // in decimeters (1/10 m)
+  types: {
+    slot: number;
+    type: {
+      name: string;
+      url: string;
+    };
+  }[];
+  stats: {
+    base_stat: number;
+    effort: number;
+    stat: {
+      name: string;
+      url: string;
+    };
+  }[];
+  abilities: {
+    ability: {
+      name: string;
+      url: string;
+    };
+    is_hidden: boolean;
+    slot: number;
+  }[];
   base_experience: number;
-  height: number;
-  weight: number;
-  abilities: PokemonAbility[];
   forms: NamedAPIResource[];
   game_indices: {
     game_index: number;
@@ -83,8 +105,6 @@ export interface Pokemon {
   }[];
   species: NamedAPIResource;
   sprites: PokemonSprites;
-  stats: PokemonStat[];
-  types: PokemonType[];
   order: number;
   is_default: boolean;
 }
@@ -245,3 +265,32 @@ export interface PokemonImages {
   imagesDir: string;
   imageFiles: ImageFile[];
 }
+
+export type Answer = 'yes' | 'no' | 'unknown';
+
+export interface Question {
+  id: string;
+  text: string;
+  type: 'weight' | 'height' | 'type' | 'stat' | 'ability' | 'generation';
+  parameter?: string | number;
+}
+
+export interface GameState {
+  possiblePokemon: Pokemon[];
+  askedQuestions: {
+    question: Question;
+    answer: Answer;
+  }[];
+  currentQuestion: Question | null;
+  isComplete: boolean;
+  guessedPokemon: Pokemon | null;
+}
+
+// Simplified Pokemon type for game logic - only includes fields we actually use
+export interface SimplePokemon {
+  id: number;
+  name: string;
+  weight: number; // in hectograms (1/10 kg)
+}
+
+// Full Pokemon type from PokeAPI (for future use)
