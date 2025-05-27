@@ -521,7 +521,8 @@
 }
 
 /* Loading and Error States */
-.loading-card, .error-card {
+.loading-card,
+.error-card {
   background: white;
   border-radius: 20px;
   padding: 3rem;
@@ -542,8 +543,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-card button {
@@ -747,26 +752,26 @@
   .container {
     padding: 1rem;
   }
-  
+
   .pokemon-result {
     flex-direction: column;
   }
-  
+
   .pokemon-image-container {
     width: 150px;
     height: 150px;
   }
-  
+
   .answer-buttons {
     flex-direction: column;
     gap: 0.75rem;
   }
-  
+
   .answer-button {
     min-width: auto;
     width: 100%;
   }
-  
+
   .progress-info {
     flex-direction: column;
     gap: 0.5rem;
