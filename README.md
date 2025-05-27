@@ -160,11 +160,3 @@ If you want to use the complete aggregated datasets locally:
 3. **Automatic fallback**: The game automatically falls back to the original loading method if aggregated files aren't available.
 
 **Note**: Large aggregated files (>100MB) are excluded from the repository due to GitHub's file size limits, but the minimal dataset is included for optimal performance.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
