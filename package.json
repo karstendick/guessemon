@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "type-check": "tsc -b",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "pre-commit": "lint-staged",
@@ -32,6 +33,9 @@
     ],
     "*.{json,md,yml,yaml}": [
       "prettier --write"
+    ],
+    "*.{ts,tsx}": [
+      "tsc --noEmit"
     ]
   },
   "dependencies": {
@@ -55,6 +59,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.0.0",
     "prettier": "^3.5.3",
+    "tsc-files": "^1.1.4",
     "tsx": "^4.19.4",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PokemonGameEngine } from './gameEngine';
 import type { GameState } from './types/pokemon';
 import './App.css';
