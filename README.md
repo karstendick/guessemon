@@ -128,3 +128,43 @@ npm run build
 - **Vite** - Build tool and dev server
 - **PokéAPI** - Pokémon data source
 - **Node.js** - Data fetching scripts
+
+## Performance Optimization
+
+This game includes an advanced data optimization system that dramatically improves loading performance:
+
+### Default Behavior
+
+- Uses a minimal dataset (0.23MB) for ultra-fast loading
+- Reduces from 2600+ individual requests to just 1 request
+- Loads in seconds instead of 40+ seconds
+
+### For Developers: Full Data Aggregation
+
+If you want to use the complete aggregated datasets locally:
+
+1. **Generate aggregated files**:
+
+   ```bash
+   npm run aggregate-data
+   ```
+
+2. **What this creates**:
+
+   - `minimal-pokemon.json` (0.23MB) - Essential game data
+   - `all-pokemon.json` (137MB) - Complete Pokémon data
+   - `all-species.json` (21MB) - Species information
+   - `all-evolution-chains.json` (0.38MB) - Evolution data
+   - `all-types.json` (0.33MB) - Type effectiveness data
+
+3. **Automatic fallback**: The game automatically falls back to the original loading method if aggregated files aren't available.
+
+**Note**: Large aggregated files (>100MB) are excluded from the repository due to GitHub's file size limits, but the minimal dataset is included for optimal performance.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
