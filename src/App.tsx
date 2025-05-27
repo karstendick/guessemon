@@ -164,7 +164,7 @@ function App() {
     <div className="app">
       <div className="container">
         <div className="game-header">
-          <h1>🎮 Pokémon 20 Questions</h1>
+          <h1>🎮 Guessémon: Pokémon 20 Questions</h1>
           <div className="progress-info">
             <span>
               Question {(gameState.answers.length + 1).toString()} of 20
