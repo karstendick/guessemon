@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { PokemonGameEngine } from './gameEngine';
 import type { GameState } from './types/pokemon';
+import { buildUrl } from './utils';
 import './App.css';
 
 function App() {
@@ -83,7 +84,9 @@ function App() {
     pokemonId: number,
     pokemonName: string
   ): string => {
-    return `/images/pokemon/${pokemonId.toString()}-${pokemonName}/official-artwork.png`;
+    return buildUrl(
+      `/images/pokemon/${pokemonId.toString()}-${pokemonName}/official-artwork.png`
+    );
   };
 
   if (isLoading) {
