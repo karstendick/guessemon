@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4444"/>
+      <stop offset="100%" stop-color="#cc0000"/>
+    </linearGradient>
+    <linearGradient id="whiteGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0f0f0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer circle -->
+  <circle cx="16" cy="16" r="15" fill="#333" stroke="#000" stroke-width="1"/>
+  
+  <!-- Top half (red) -->
+  <path d="M 1 16 A 15 15 0 0 1 31 16 Z" fill="url(#redGradient)"/>
+  
+  <!-- Bottom half (white) -->
+  <path d="M 1 16 A 15 15 0 0 0 31 16 Z" fill="url(#whiteGradient)"/>
+  
+  <!-- Center line -->
+  <rect x="1" y="14.5" width="30" height="3" fill="#333"/>
+  
+  <!-- Center circle (outer) -->
+  <circle cx="16" cy="16" r="6" fill="#333"/>
+  
+  <!-- Center circle (inner) -->
+  <circle cx="16" cy="16" r="4" fill="url(#whiteGradient)"/>
+  
+  <!-- Center button -->
+  <circle cx="16" cy="16" r="2" fill="#333"/>
+</svg> 
