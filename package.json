@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "aggregate-data": "node scripts/aggregate-data.js",
     "deploy": "npm run build && gh-pages -d dist",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

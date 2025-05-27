@@ -4,7 +4,7 @@ import type {
   GameState,
   Question,
 } from './types/pokemon';
-import { loadSimplePokemon, getPokemonById } from './dataLoader';
+import { loadSimplePokemon, getPokemonById } from './dataLoaderOptimized';
 
 interface QuestionStrategy {
   type: Question['type'];

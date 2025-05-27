@@ -25,3 +25,9 @@ data/
 *.njsproj
 *.sln
 *.sw?
+
+# Large aggregated data files (too big for GitHub)
+public/api/v2/aggregated/all-pokemon.json
+public/api/v2/aggregated/all-species.json
+public/api/v2/aggregated/all-evolution-chains.json
+public/api/v2/aggregated/all-types.json
