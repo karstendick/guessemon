@@ -2,6 +2,10 @@
 
 A React + TypeScript + Vite application with comprehensive Pokémon data fetching and caching capabilities, **now including automatic image downloading!**
 
+## 🚀 Live Demo
+
+The game is deployed on GitHub Pages: [https://karstendick.github.io/guessemon/](https://karstendick.github.io/guessemon/)
+
 ## Features
 
 - 🎮 **Pokémon Guessing Game** (coming soon)
@@ -74,6 +78,35 @@ const bulbasaur = JSON.parse(
 ```
 
 See [`src/scripts/README.md`](src/scripts/README.md) for detailed documentation.
+
+## Deployment
+
+This project is configured for automatic deployment to GitHub Pages using GitHub Actions.
+
+### Automatic Deployment
+
+1. Push your changes to the `main` branch
+2. GitHub Actions will automatically build and deploy the app
+3. Your site will be available at `https://yourusername.github.io/guessemon/`
+
+### Manual Deployment
+
+You can also deploy manually using:
+
+```bash
+# Install gh-pages if not already installed
+npm install
+
+# Build and deploy to GitHub Pages
+npm run deploy
+```
+
+### Setup GitHub Pages
+
+1. Go to your repository settings on GitHub
+2. Navigate to "Pages" in the sidebar
+3. Under "Source", select "GitHub Actions"
+4. The deployment workflow will handle the rest automatically
 
 ## Development
 
