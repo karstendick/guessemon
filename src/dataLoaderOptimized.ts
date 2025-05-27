@@ -57,11 +57,28 @@ export async function loadMinimalPokemon(): Promise<SimplePokemon[]> {
       MinimalPokemonData
     >;
 
-    // Load evolution chains and types for enhanced data calculation
-    await loadAllEvolutionChains();
-    await loadAllTypes();
+    // Try to load evolution chains and types for enhanced data calculation
+    // If these fail, we'll continue without them (fallback mode)
+    let hasEvolutionData = false;
+    let hasTypeData = false;
 
-    console.log('Enhancing Pokemon data with type effectiveness...');
+    try {
+      await loadAllEvolutionChains();
+      hasEvolutionData = true;
+      console.log('✅ Evolution chains loaded successfully');
+    } catch {
+      console.log('⚠️ Evolution chains not available, using fallback logic');
+    }
+
+    try {
+      await loadAllTypes();
+      hasTypeData = true;
+      console.log('✅ Type data loaded successfully');
+    } catch {
+      console.log('⚠️ Type data not available, using fallback logic');
+    }
+
+    console.log('Enhancing Pokemon data with available information...');
 
     // Convert to SimplePokemon format with enhanced data
     const simplePokemon: SimplePokemon[] = [];
@@ -69,12 +86,16 @@ export async function loadMinimalPokemon(): Promise<SimplePokemon[]> {
 
     for (let i = 0; i < pokemonArray.length; i++) {
       const pokemon = pokemonArray[i];
-      const { hasEvolution, isEvolved } = checkEvolutionStatusMinimal(pokemon);
 
-      // Calculate type effectiveness
-      const { weaknesses, strengths } = await calculateTypeEffectiveness(
-        pokemon.types
-      );
+      // Calculate evolution status (with or without evolution chain data)
+      const { hasEvolution, isEvolved } = hasEvolutionData
+        ? checkEvolutionStatusMinimal(pokemon)
+        : checkEvolutionStatusFallback(pokemon);
+
+      // Calculate type effectiveness (with or without type data)
+      const { weaknesses, strengths } = hasTypeData
+        ? await calculateTypeEffectiveness(pokemon.types)
+        : getBasicTypeEffectiveness(pokemon.types);
 
       const simplePokemonEntry: SimplePokemon = {
         id: pokemon.id,
@@ -98,7 +119,7 @@ export async function loadMinimalPokemon(): Promise<SimplePokemon[]> {
       // Progress update every 100 Pokemon
       if ((i + 1) % 100 === 0) {
         console.log(
-          `Enhanced ${(i + 1).toString()}/${pokemonArray.length.toString()} Pokemon with type effectiveness...`
+          `Enhanced ${(i + 1).toString()}/${pokemonArray.length.toString()} Pokemon...`
         );
       }
     }
@@ -110,7 +131,8 @@ export async function loadMinimalPokemon(): Promise<SimplePokemon[]> {
     return simplePokemon;
   } catch (error) {
     console.error('Error loading minimal pokemon data:', error);
-    throw error;
+    console.log('Falling back to original data loader...');
+    return await loadSimplePokemonOriginal();
   }
 }
 
@@ -274,6 +296,112 @@ function checkEvolutionStatusMinimal(pokemon: MinimalPokemonData): {
   return { hasEvolution, isEvolved };
 }
 
+// Fallback evolution status check when evolution chain data isn't available
+function checkEvolutionStatusFallback(pokemon: MinimalPokemonData): {
+  hasEvolution: boolean;
+  isEvolved: boolean;
+} {
+  // Simple fallback logic based on available data
+  const isEvolved = pokemon.evolves_from_species !== null;
+
+  // For hasEvolution, we can't determine this without evolution chain data
+  // So we'll use a conservative approach and assume false
+  const hasEvolution = false;
+
+  return { hasEvolution, isEvolved };
+}
+
+// Basic type effectiveness calculation without full type data
+function getBasicTypeEffectiveness(pokemonTypes: string[]): {
+  weaknesses: string[];
+  strengths: string[];
+} {
+  // Basic type effectiveness chart (simplified)
+  const basicTypeChart: Record<
+    string,
+    { weakTo: string[]; strongAgainst: string[] }
+  > = {
+    normal: { weakTo: ['fighting'], strongAgainst: [] },
+    fire: {
+      weakTo: ['water', 'ground', 'rock'],
+      strongAgainst: ['grass', 'ice', 'bug', 'steel'],
+    },
+    water: {
+      weakTo: ['electric', 'grass'],
+      strongAgainst: ['fire', 'ground', 'rock'],
+    },
+    electric: { weakTo: ['ground'], strongAgainst: ['water', 'flying'] },
+    grass: {
+      weakTo: ['fire', 'ice', 'poison', 'flying', 'bug'],
+      strongAgainst: ['water', 'ground', 'rock'],
+    },
+    ice: {
+      weakTo: ['fire', 'fighting', 'rock', 'steel'],
+      strongAgainst: ['grass', 'ground', 'flying', 'dragon'],
+    },
+    fighting: {
+      weakTo: ['flying', 'psychic', 'fairy'],
+      strongAgainst: ['normal', 'ice', 'rock', 'dark', 'steel'],
+    },
+    poison: {
+      weakTo: ['ground', 'psychic'],
+      strongAgainst: ['grass', 'fairy'],
+    },
+    ground: {
+      weakTo: ['water', 'grass', 'ice'],
+      strongAgainst: ['fire', 'electric', 'poison', 'rock', 'steel'],
+    },
+    flying: {
+      weakTo: ['electric', 'ice', 'rock'],
+      strongAgainst: ['grass', 'fighting', 'bug'],
+    },
+    psychic: {
+      weakTo: ['bug', 'ghost', 'dark'],
+      strongAgainst: ['fighting', 'poison'],
+    },
+    bug: {
+      weakTo: ['fire', 'flying', 'rock'],
+      strongAgainst: ['grass', 'psychic', 'dark'],
+    },
+    rock: {
+      weakTo: ['water', 'grass', 'fighting', 'ground', 'steel'],
+      strongAgainst: ['fire', 'ice', 'flying', 'bug'],
+    },
+    ghost: { weakTo: ['ghost', 'dark'], strongAgainst: ['psychic', 'ghost'] },
+    dragon: { weakTo: ['ice', 'dragon', 'fairy'], strongAgainst: ['dragon'] },
+    dark: {
+      weakTo: ['fighting', 'bug', 'fairy'],
+      strongAgainst: ['psychic', 'ghost'],
+    },
+    steel: {
+      weakTo: ['fire', 'fighting', 'ground'],
+      strongAgainst: ['ice', 'rock', 'fairy'],
+    },
+    fairy: {
+      weakTo: ['poison', 'steel'],
+      strongAgainst: ['fighting', 'dragon', 'dark'],
+    },
+  };
+
+  const weaknesses = new Set<string>();
+  const strengths = new Set<string>();
+
+  // Process each of the Pokemon's types
+  for (const typeName of pokemonTypes) {
+    const typeInfo = basicTypeChart[typeName];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (typeInfo) {
+      typeInfo.weakTo.forEach(type => weaknesses.add(type));
+      typeInfo.strongAgainst.forEach(type => strengths.add(type));
+    }
+  }
+
+  return {
+    weaknesses: Array.from(weaknesses),
+    strengths: Array.from(strengths),
+  };
+}
+
 // Calculate type effectiveness for a Pokemon (on demand)
 export async function calculateTypeEffectiveness(
   pokemonTypes: string[]
@@ -312,7 +440,8 @@ export async function calculateTypeEffectiveness(
     if (!typeId) continue;
 
     const typeData = allTypes[typeId];
-    // TypeData should always exist for valid type IDs, but check just in case
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!typeData) continue;
 
     // Add weaknesses (types that deal double damage to this type)
     typeData.damage_relations.double_damage_from.forEach(type => {
