@@ -8,6 +8,28 @@ import type {
   ChainLink,
 } from './types/pokemon';
 
+// Helper function to build URLs that work with GitHub Pages base path
+function buildApiUrl(path: string): string {
+  // For GitHub Pages, we need to include the repository name in the path
+  // In development, this will be just the path
+  const isDevelopment =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  if (isDevelopment) {
+    return path;
+  }
+
+  // For GitHub Pages, the base path is /repository-name/
+  // We can get this from the current pathname
+  const pathSegments = window.location.pathname.split('/').filter(Boolean);
+  const basePath = pathSegments.length > 0 ? `/${pathSegments[0]}` : '';
+
+  // Remove leading slash from path and combine with base
+  const cleanPath = path.replace(/^\//, '');
+  return `${basePath}/${cleanPath}`;
+}
+
 // Cache for loaded Pokemon data
 let pokemonCache: Pokemon[] | null = null;
 let simplePokemonCache: SimplePokemon[] | null = null;
@@ -18,7 +40,7 @@ const typeCache = new Map<string, TypeData>();
 // Load the pokemon list to get all available pokemon
 export async function loadPokemonList(): Promise<PokemonListEntry[]> {
   try {
-    const response = await fetch('/api/v2/pokemon-list.json');
+    const response = await fetch(buildApiUrl('/api/v2/pokemon-list.json'));
     if (!response.ok) {
       throw new Error(`Failed to load pokemon list: ${response.statusText}`);
     }
@@ -64,7 +86,7 @@ async function loadPokemonSpecies(id: number): Promise<PokemonSpecies | null> {
 
   try {
     const response = await fetch(
-      `/api/v2/pokemon-species/${id.toString()}.json`
+      buildApiUrl(`/api/v2/pokemon-species/${id.toString()}.json`)
     );
     if (!response.ok) {
       console.warn(
@@ -94,7 +116,7 @@ async function loadEvolutionChain(
 
   try {
     const response = await fetch(
-      `/api/v2/evolution-chain/${chainId.toString()}.json`
+      buildApiUrl(`/api/v2/evolution-chain/${chainId.toString()}.json`)
     );
     if (!response.ok) {
       console.warn(
@@ -155,7 +177,7 @@ function checkEvolutionStatus(
 export async function loadPokemon(id: number, name: string): Promise<Pokemon> {
   try {
     const response = await fetch(
-      `/api/v2/pokemon/${id.toString()}-${name}.json`
+      buildApiUrl(`/api/v2/pokemon/${id.toString()}-${name}.json`)
     );
     if (!response.ok) {
       throw new Error(`Failed to load pokemon ${name}: ${response.statusText}`);
@@ -369,7 +391,9 @@ async function loadTypeData(typeName: string): Promise<TypeData | null> {
     const typeId = typeIds[typeName];
     if (!typeId) return null;
 
-    const response = await fetch(`/api/v2/type/${typeId.toString()}.json`);
+    const response = await fetch(
+      buildApiUrl(`/api/v2/type/${typeId.toString()}.json`)
+    );
     if (!response.ok) {
       console.warn(
         `Failed to load type data for ${typeName}: ${response.statusText}`
