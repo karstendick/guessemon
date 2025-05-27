@@ -253,9 +253,21 @@ export interface AnsweredQuestion {
 
 export interface Question {
   text: string;
-  type: 'weight' | 'type' | 'stat' | 'ability' | 'height';
+  type:
+    | 'weight'
+    | 'height'
+    | 'type'
+    | 'generation'
+    | 'legendary'
+    | 'mythical'
+    | 'baby'
+    | 'evolution'
+    | 'weakness'
+    | 'strength'
+    | 'color';
   value?: number;
   stringValue?: string;
+  booleanValue?: boolean;
 }
 
 export interface GameState {
@@ -271,6 +283,17 @@ export interface SimplePokemon {
   id: number;
   name: string;
   weight: number;
+  height: number;
+  types: string[];
+  generation: number;
+  isLegendary: boolean;
+  isMythical: boolean;
+  isBaby: boolean;
+  hasEvolution: boolean;
+  isEvolved: boolean;
+  color: string;
+  weaknesses: string[];
+  strengths: string[];
 }
 
 // Pokemon list entry from pokemon-list.json

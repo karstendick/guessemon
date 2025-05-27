@@ -45,8 +45,8 @@ function App() {
     }
   };
 
-  const handleAnswer = (response: 'yes' | 'no' | 'unknown') => {
-    gameEngine.answerQuestion(response);
+  const handleAnswer = async (response: 'yes' | 'no' | 'unknown') => {
+    await gameEngine.answerQuestion(response);
     setGameState(gameEngine.getGameState());
   };
 
@@ -166,10 +166,13 @@ function App() {
         <div className="game-header">
           <h1>🎮 Pokémon 20 Questions</h1>
           <div className="progress-info">
-            <span>Question {gameState.answers.length + 1} of 20</span>
+            <span>
+              Question {(gameState.answers.length + 1).toString()} of 20
+            </span>
             <span>•</span>
             <span>
-              {gameEngine.getRemainingCount()} possibilities remaining
+              {gameEngine.getRemainingCount().toString()} possibilities
+              remaining
             </span>
           </div>
           <div className="progress-bar">
@@ -184,9 +187,14 @@ function App() {
 
         <div className="questions-container">
           {gameState.answers.map((answer, index) => (
-            <div key={answer.question.text} className="question-card answered">
+            <div
+              key={`question-${index.toString()}`}
+              className="question-card answered"
+            >
               <div className="question-header">
-                <span className="question-number">Q{index + 1}</span>
+                <span className="question-number">
+                  Q{(index + 1).toString()}
+                </span>
                 <span className={`answer-badge ${answer.response}`}>
                   {answer.response === 'yes'
                     ? '✅ Yes'
@@ -203,7 +211,7 @@ function App() {
             <div ref={currentQuestionRef} className="question-card current">
               <div className="question-header">
                 <span className="question-number">
-                  Q{gameState.answers.length + 1}
+                  Q{(gameState.answers.length + 1).toString()}
                 </span>
               </div>
               <p className="question-text">{gameState.currentQuestion.text}</p>
@@ -212,7 +220,7 @@ function App() {
                   type="button"
                   className="answer-button yes"
                   onClick={() => {
-                    handleAnswer('yes');
+                    void handleAnswer('yes');
                   }}
                 >
                   ✅ Yes
@@ -221,7 +229,7 @@ function App() {
                   type="button"
                   className="answer-button no"
                   onClick={() => {
-                    handleAnswer('no');
+                    void handleAnswer('no');
                   }}
                 >
                   ❌ No
@@ -230,7 +238,7 @@ function App() {
                   type="button"
                   className="answer-button unknown"
                   onClick={() => {
-                    handleAnswer('unknown');
+                    void handleAnswer('unknown');
                   }}
                 >
                   ❓ I Don't Know

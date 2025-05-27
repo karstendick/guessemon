@@ -1,8 +1,19 @@
-import type { Pokemon, PokemonListEntry, SimplePokemon } from './types/pokemon';
+import type {
+  Pokemon,
+  PokemonListEntry,
+  SimplePokemon,
+  PokemonSpecies,
+  EvolutionChain,
+  TypeData,
+  ChainLink,
+} from './types/pokemon';
 
 // Cache for loaded Pokemon data
 let pokemonCache: Pokemon[] | null = null;
 let simplePokemonCache: SimplePokemon[] | null = null;
+const speciesCache = new Map<number, PokemonSpecies>();
+const evolutionCache = new Map<number, EvolutionChain>();
+const typeCache = new Map<string, TypeData>();
 
 // Load the pokemon list to get all available pokemon
 export async function loadPokemonList(): Promise<PokemonListEntry[]> {
@@ -23,6 +34,121 @@ export async function loadPokemonList(): Promise<PokemonListEntry[]> {
 function extractPokemonId(url: string): number {
   const matches = /\/pokemon\/(\d+)\//.exec(url);
   return matches ? parseInt(matches[1], 10) : 0;
+}
+
+// Extract generation number from generation name
+function extractGenerationNumber(generationName: string): number {
+  const match = /generation-([ivx]+)/.exec(generationName);
+  if (!match) return 1;
+
+  const romanToNumber: Record<string, number> = {
+    i: 1,
+    ii: 2,
+    iii: 3,
+    iv: 4,
+    v: 5,
+    vi: 6,
+    vii: 7,
+    viii: 8,
+    ix: 9,
+  };
+
+  return romanToNumber[match[1]] || 1;
+}
+
+// Load a single pokemon's species data
+async function loadPokemonSpecies(id: number): Promise<PokemonSpecies | null> {
+  if (speciesCache.has(id)) {
+    return speciesCache.get(id) ?? null;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/v2/pokemon-species/${id.toString()}.json`
+    );
+    if (!response.ok) {
+      console.warn(
+        `Failed to load species data for Pokemon ${id.toString()}: ${response.statusText}`
+      );
+      return null;
+    }
+    const species = (await response.json()) as PokemonSpecies;
+    speciesCache.set(id, species);
+    return species;
+  } catch (error) {
+    console.warn(
+      `Error loading species data for Pokemon ${id.toString()}:`,
+      error
+    );
+    return null;
+  }
+}
+
+// Load evolution chain data
+async function loadEvolutionChain(
+  chainId: number
+): Promise<EvolutionChain | null> {
+  if (evolutionCache.has(chainId)) {
+    return evolutionCache.get(chainId) ?? null;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/v2/evolution-chain/${chainId.toString()}.json`
+    );
+    if (!response.ok) {
+      console.warn(
+        `Failed to load evolution chain ${chainId.toString()}: ${response.statusText}`
+      );
+      return null;
+    }
+    const chain = (await response.json()) as EvolutionChain;
+    evolutionCache.set(chainId, chain);
+    return chain;
+  } catch (error) {
+    console.warn(`Error loading evolution chain ${chainId.toString()}:`, error);
+    return null;
+  }
+}
+
+// Check if a Pokemon has evolution (either evolves from or evolves to something)
+function checkEvolutionStatus(
+  pokemon: Pokemon,
+  species: PokemonSpecies | null,
+  evolutionChain: EvolutionChain | null
+): { hasEvolution: boolean; isEvolved: boolean } {
+  let hasEvolution = false;
+  let isEvolved = false;
+
+  // Check if it evolves from something
+  if (species?.evolves_from_species) {
+    isEvolved = true;
+    hasEvolution = true;
+  }
+
+  // Check if it evolves into something by traversing the evolution chain
+  if (evolutionChain) {
+    const checkChainForEvolution = (
+      chain: ChainLink,
+      pokemonName: string
+    ): boolean => {
+      if (chain.species.name === pokemonName && chain.evolves_to.length > 0) {
+        return true;
+      }
+      for (const evolution of chain.evolves_to) {
+        if (checkChainForEvolution(evolution, pokemonName)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (checkChainForEvolution(evolutionChain.chain, pokemon.name)) {
+      hasEvolution = true;
+    }
+  }
+
+  return { hasEvolution, isEvolved };
 }
 
 // Load a single pokemon's complete data
@@ -110,12 +236,81 @@ export async function loadSimplePokemon(): Promise<SimplePokemon[]> {
 
   try {
     const allPokemon = await loadAllPokemon();
-    simplePokemonCache = allPokemon.map(pokemon => ({
-      id: pokemon.id,
-      name: pokemon.name,
-      weight: pokemon.weight,
-    }));
-    return simplePokemonCache;
+    console.log(
+      'Enhancing Pokemon data with species and evolution information...'
+    );
+
+    const enhancedPokemon: SimplePokemon[] = [];
+
+    for (let i = 0; i < allPokemon.length; i++) {
+      const pokemon = allPokemon[i];
+
+      // Load species data
+      const species = await loadPokemonSpecies(pokemon.id);
+
+      // Load evolution chain if species data is available
+      let evolutionChain: EvolutionChain | null = null;
+      if (species?.evolution_chain.url) {
+        const chainId = parseInt(
+          species.evolution_chain.url.split('/').slice(-2, -1)[0],
+          10
+        );
+        evolutionChain = await loadEvolutionChain(chainId);
+      }
+
+      // Check evolution status
+      const { hasEvolution, isEvolved } = checkEvolutionStatus(
+        pokemon,
+        species,
+        evolutionChain
+      );
+
+      // Extract generation number
+      const generation = species
+        ? extractGenerationNumber(species.generation.name)
+        : 1;
+
+      // Calculate type effectiveness
+      const { weaknesses, strengths } = await calculateTypeEffectiveness(
+        pokemon.types.map(t => t.type.name)
+      );
+
+      // Extract color
+      const color = species?.color.name ?? 'unknown';
+
+      // Create enhanced SimplePokemon object
+      const simplePokemon: SimplePokemon = {
+        id: pokemon.id,
+        name: pokemon.name,
+        weight: pokemon.weight,
+        height: pokemon.height,
+        types: pokemon.types.map(t => t.type.name),
+        generation,
+        isLegendary: species?.is_legendary ?? false,
+        isMythical: species?.is_mythical ?? false,
+        isBaby: species?.is_baby ?? false,
+        hasEvolution,
+        isEvolved,
+        color,
+        weaknesses,
+        strengths,
+      };
+
+      enhancedPokemon.push(simplePokemon);
+
+      // Progress update every 100 Pokemon
+      if ((i + 1) % 100 === 0) {
+        console.log(
+          `Enhanced ${(i + 1).toString()}/${allPokemon.length.toString()} Pokemon with additional data...`
+        );
+      }
+    }
+
+    simplePokemonCache = enhancedPokemon;
+    console.log(
+      `Successfully enhanced ${enhancedPokemon.length.toString()} Pokemon with additional data!`
+    );
+    return enhancedPokemon;
   } catch (error) {
     console.error('Error loading simple pokemon data:', error);
     throw error;
@@ -137,4 +332,100 @@ export async function getPokemonById(id: number): Promise<Pokemon | null> {
 export function clearPokemonCache(): void {
   pokemonCache = null;
   simplePokemonCache = null;
+  speciesCache.clear();
+  evolutionCache.clear();
+  typeCache.clear();
+}
+
+// Load type data for effectiveness calculations
+async function loadTypeData(typeName: string): Promise<TypeData | null> {
+  if (typeCache.has(typeName)) {
+    return typeCache.get(typeName) ?? null;
+  }
+
+  try {
+    // Map type names to their IDs (this is a simplified mapping)
+    const typeIds: Record<string, number> = {
+      normal: 1,
+      fighting: 2,
+      flying: 3,
+      poison: 4,
+      ground: 5,
+      rock: 6,
+      bug: 7,
+      ghost: 8,
+      steel: 9,
+      fire: 10,
+      water: 11,
+      grass: 12,
+      electric: 13,
+      psychic: 14,
+      ice: 15,
+      dragon: 16,
+      dark: 17,
+      fairy: 18,
+    };
+
+    const typeId = typeIds[typeName];
+    if (!typeId) return null;
+
+    const response = await fetch(`/api/v2/type/${typeId.toString()}.json`);
+    if (!response.ok) {
+      console.warn(
+        `Failed to load type data for ${typeName}: ${response.statusText}`
+      );
+      return null;
+    }
+    const typeData = (await response.json()) as TypeData;
+    typeCache.set(typeName, typeData);
+    return typeData;
+  } catch (error) {
+    console.warn(`Error loading type data for ${typeName}:`, error);
+    return null;
+  }
+}
+
+// Calculate weaknesses and strengths for a Pokemon based on its types
+async function calculateTypeEffectiveness(
+  pokemonTypes: string[]
+): Promise<{ weaknesses: string[]; strengths: string[] }> {
+  const weaknesses = new Set<string>();
+  const strengths = new Set<string>();
+  const resistances = new Set<string>();
+  const immunities = new Set<string>();
+
+  // Load type data for each of the Pokemon's types
+  for (const typeName of pokemonTypes) {
+    const typeData = await loadTypeData(typeName);
+    if (!typeData) continue;
+
+    // Add weaknesses (types that deal double damage to this type)
+    typeData.damage_relations.double_damage_from.forEach(type => {
+      weaknesses.add(type.name);
+    });
+
+    // Add resistances (types that deal half damage to this type)
+    typeData.damage_relations.half_damage_from.forEach(type => {
+      resistances.add(type.name);
+    });
+
+    // Add immunities (types that deal no damage to this type)
+    typeData.damage_relations.no_damage_from.forEach(type => {
+      immunities.add(type.name);
+    });
+
+    // Add strengths (types this Pokemon is strong against)
+    typeData.damage_relations.double_damage_to.forEach(type => {
+      strengths.add(type.name);
+    });
+  }
+
+  // Remove resistances and immunities from weaknesses
+  resistances.forEach(type => weaknesses.delete(type));
+  immunities.forEach(type => weaknesses.delete(type));
+
+  return {
+    weaknesses: Array.from(weaknesses),
+    strengths: Array.from(strengths),
+  };
 }

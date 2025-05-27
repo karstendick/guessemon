@@ -16,6 +16,10 @@ pnpm-lock.yaml
 # Data files (assuming these are generated/fetched)
 data/
 
+# Pokemon API data files
+public/api/
+public/images/
+
 # Git
 .git/
 
