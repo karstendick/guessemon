@@ -1,139 +1,144 @@
-import type { Answer, SimplePokemon } from './types/pokemon';
-
-interface CurrentQuestion {
-  text: string;
-  type: 'weight';
-  parameter: number;
-}
+import type {
+  SimplePokemon,
+  AnsweredQuestion,
+  GameState,
+} from './types/pokemon';
+import { loadSimplePokemon, getPokemonById } from './dataLoader';
 
 export class PokemonGameEngine {
+  private gameState: GameState;
   private allPokemon: SimplePokemon[] = [];
-  private possiblePokemon: SimplePokemon[] = [];
-  private currentQuestion: CurrentQuestion | null = null;
-  private questionCount = 0;
-  private maxQuestions = 20;
-  private isComplete = false;
 
-  initializeGame(): void {
-    this.allPokemon = this.loadPokemonData();
-    this.possiblePokemon = [...this.allPokemon];
-    this.questionCount = 0;
-    this.isComplete = false;
-    this.generateNextQuestion();
-    console.log(`Loaded ${this.allPokemon.length.toString()} Pokemon`);
+  constructor() {
+    this.gameState = {
+      currentQuestion: null,
+      answers: [],
+      possiblePokemon: [],
+      gameComplete: false,
+      guessedPokemon: null,
+    };
   }
 
-  private loadPokemonData(): SimplePokemon[] {
-    // Mock data for now - replace with actual data loading later
-    return [
-      { id: 25, name: 'pikachu', weight: 60 }, // 6.0 kg
-      { id: 1, name: 'bulbasaur', weight: 69 }, // 6.9 kg
-      { id: 6, name: 'charizard', weight: 905 }, // 90.5 kg
-      { id: 143, name: 'snorlax', weight: 4600 }, // 460.0 kg
-    ];
+  // Initialize the game with real Pokemon data
+  async initialize(): Promise<void> {
+    try {
+      console.log('Initializing Pokemon game engine...');
+      this.allPokemon = await loadSimplePokemon();
+      this.gameState.possiblePokemon = [...this.allPokemon];
+      console.log(
+        `Game initialized with ${this.allPokemon.length.toString()} Pokemon!`
+      );
+    } catch (error) {
+      console.error('Failed to initialize game:', error);
+      throw error;
+    }
+  }
+
+  // Start a new game
+  async startNewGame(): Promise<void> {
+    if (this.allPokemon.length === 0) {
+      await this.initialize();
+    }
+
+    this.gameState = {
+      currentQuestion: null,
+      answers: [],
+      possiblePokemon: [...this.allPokemon],
+      gameComplete: false,
+      guessedPokemon: null,
+    };
+
+    this.generateNextQuestion();
   }
 
   // Generate the next question using binary search on weight
   private generateNextQuestion(): void {
-    if (
-      this.possiblePokemon.length <= 1 ||
-      this.questionCount >= this.maxQuestions
-    ) {
-      this.completeGame();
+    if (this.gameState.possiblePokemon.length <= 1) {
+      void this.completeGame();
       return;
     }
 
-    // Sort possible Pokemon by weight
-    const sortedByWeight = [...this.possiblePokemon].sort(
+    if (this.gameState.answers.length >= 20) {
+      void this.completeGame();
+      return;
+    }
+
+    // Sort by weight and find median
+    const sortedPokemon = [...this.gameState.possiblePokemon].sort(
       (a, b) => a.weight - b.weight
     );
+    const medianIndex = Math.floor(sortedPokemon.length / 2);
+    const medianWeight = sortedPokemon[medianIndex].weight;
+    const weightInKg = medianWeight / 10; // Convert hectograms to kg
 
-    // Find the median weight to split the possibilities in half
-    const medianIndex = Math.floor(sortedByWeight.length / 2);
-    const medianWeight = sortedByWeight[medianIndex].weight;
-
-    // Convert hectograms to a more readable format
-    const weightInKg = medianWeight / 10;
-
-    this.currentQuestion = {
+    this.gameState.currentQuestion = {
       text: `Is your Pokémon heavier than ${weightInKg.toString()} kg?`,
       type: 'weight',
-      parameter: medianWeight,
+      value: medianWeight,
     };
   }
 
-  // Process the user's answer and update the game state
-  answerQuestion(answer: Answer): void {
-    if (!this.currentQuestion || this.isComplete) return;
+  // Process an answer and update the game state
+  answerQuestion(response: 'yes' | 'no' | 'unknown'): void {
+    if (!this.gameState.currentQuestion || this.gameState.gameComplete) {
+      return;
+    }
 
-    // Record the question and answer
-    this.questionCount++;
+    const answer: AnsweredQuestion = {
+      response,
+      question: this.gameState.currentQuestion,
+    };
+
+    this.gameState.answers.push(answer);
 
     // Filter possible Pokemon based on the answer
-    if (answer !== 'unknown') {
-      const threshold = this.currentQuestion.parameter;
+    if (
+      this.gameState.currentQuestion.type === 'weight' &&
+      this.gameState.currentQuestion.value !== undefined
+    ) {
+      const threshold = this.gameState.currentQuestion.value;
 
-      if (answer === 'yes') {
-        // Keep Pokemon heavier than threshold
-        this.possiblePokemon = this.possiblePokemon.filter(
+      if (response === 'yes') {
+        // Pokemon is heavier than threshold
+        this.gameState.possiblePokemon = this.gameState.possiblePokemon.filter(
           pokemon => pokemon.weight > threshold
         );
-      } else {
-        // Keep Pokemon lighter than or equal to threshold
-        this.possiblePokemon = this.possiblePokemon.filter(
+      } else if (response === 'no') {
+        // Pokemon is lighter than or equal to threshold
+        this.gameState.possiblePokemon = this.gameState.possiblePokemon.filter(
           pokemon => pokemon.weight <= threshold
         );
       }
+      // For 'unknown', we don't filter the possibilities
     }
 
-    console.log(
-      `Remaining possibilities: ${this.possiblePokemon.length.toString()}`
-    );
-    console.log(
-      'Remaining Pokemon:',
-      this.possiblePokemon.map(p => p.name)
-    );
-
-    // Generate the next question
+    // Generate next question or complete game
     this.generateNextQuestion();
   }
 
-  // Complete the game when we've narrowed it down
-  private completeGame(): void {
-    this.isComplete = true;
-    this.currentQuestion = null;
+  // Complete the game and make a guess
+  private async completeGame(): Promise<void> {
+    this.gameState.gameComplete = true;
+
+    if (this.gameState.possiblePokemon.length > 0) {
+      // Pick the first remaining Pokemon as our guess
+      const guessedSimple = this.gameState.possiblePokemon[0];
+      this.gameState.guessedPokemon = await getPokemonById(guessedSimple.id);
+    }
   }
 
-  // Reset the game
-  resetGame(): void {
-    this.possiblePokemon = [...this.allPokemon];
-    this.questionCount = 0;
-    this.isComplete = false;
-    this.currentQuestion = null;
+  // Get current game state
+  getGameState(): GameState {
+    return { ...this.gameState };
   }
 
-  // Get the current question text
-  getCurrentQuestionText(): string {
-    return this.currentQuestion?.text ?? '';
-  }
-
-  // Check if the game is complete
-  isGameComplete(): boolean {
-    return this.isComplete;
-  }
-
-  // Get the final guess
-  getFinalGuess(): SimplePokemon | null {
-    return this.possiblePokemon.length === 1 ? this.possiblePokemon[0] : null;
-  }
-
-  // Get the number of questions asked
-  getQuestionsAsked(): number {
-    return this.questionCount;
-  }
-
-  // Get remaining possibilities count
+  // Get number of remaining possibilities
   getRemainingCount(): number {
-    return this.possiblePokemon.length;
+    return this.gameState.possiblePokemon.length;
+  }
+
+  // Check if game is complete
+  isGameComplete(): boolean {
+    return this.gameState.gameComplete;
   }
 }

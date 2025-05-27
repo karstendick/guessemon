@@ -1,157 +1,157 @@
-import { useState, useRef, useEffect } from 'react';
-import './App.css';
+import React, { useState, useEffect, useRef } from 'react';
 import { PokemonGameEngine } from './gameEngine';
-import type { Answer } from './types/pokemon';
-
-interface QuestionAnswer {
-  question: string;
-  answer: Answer;
-}
+import type { GameState } from './types/pokemon';
+import './App.css';
 
 function App() {
   const [gameEngine] = useState(() => new PokemonGameEngine());
-  const [answeredQuestions, setAnsweredQuestions] = useState<QuestionAnswer[]>(
-    []
-  );
-  const [currentQuestion, setCurrentQuestion] = useState<string>('');
+  const [gameState, setGameState] = useState<GameState | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
-  const [gameComplete, setGameComplete] = useState(false);
-  const [finalGuess, setFinalGuess] = useState<string>('');
-  const [finalGuessId, setFinalGuessId] = useState<number | null>(null);
-  const [remainingCount, setRemainingCount] = useState(0);
+
   const currentQuestionRef = useRef<HTMLDivElement>(null);
-  const gameResultRef = useRef<HTMLDivElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to current question when it changes
+  // Initialize the game engine
   useEffect(() => {
-    if (currentQuestionRef.current && gameStarted && !gameComplete) {
-      currentQuestionRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+    const initializeGame = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        await gameEngine.initialize();
+        setIsLoading(false);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Failed to load Pokemon data'
+        );
+        setIsLoading(false);
+      }
+    };
+
+    void initializeGame();
+  }, [gameEngine]);
+
+  const startGame = async () => {
+    try {
+      setIsLoading(true);
+      await gameEngine.startNewGame();
+      setGameState(gameEngine.getGameState());
+      setGameStarted(true);
+      setIsLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start game');
+      setIsLoading(false);
     }
-  }, [answeredQuestions.length, gameStarted, gameComplete]);
-
-  // Auto-scroll to game result when game completes
-  useEffect(() => {
-    if (gameResultRef.current && gameComplete) {
-      setTimeout(() => {
-        gameResultRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        });
-      }, 300); // Small delay to ensure the element is rendered
-    }
-  }, [gameComplete]);
-
-  const handleAnswer = (answer: Answer) => {
-    if (!currentQuestion) return;
-
-    console.log(`Question: ${currentQuestion} - Answer: ${answer}`);
-
-    // Add the answered question to our list
-    setAnsweredQuestions(prev => [
-      ...prev,
-      { question: currentQuestion, answer },
-    ]);
-
-    // Process the answer through the game engine
-    gameEngine.answerQuestion(answer);
-
-    // Update the UI based on the new game state
-    updateGameState();
   };
 
-  const updateGameState = () => {
-    const isComplete = gameEngine.isGameComplete();
-    const nextQuestion = gameEngine.getCurrentQuestionText();
-    const remaining = gameEngine.getRemainingCount();
-
-    setGameComplete(isComplete);
-    setCurrentQuestion(nextQuestion);
-    setRemainingCount(remaining);
-
-    if (isComplete) {
-      const guess = gameEngine.getFinalGuess();
-      if (guess) {
-        setFinalGuess(guess.name);
-        setFinalGuessId(guess.id);
-      }
-    }
+  const handleAnswer = (response: 'yes' | 'no' | 'unknown') => {
+    gameEngine.answerQuestion(response);
+    setGameState(gameEngine.getGameState());
   };
 
   const resetGame = () => {
-    setAnsweredQuestions([]);
     setGameStarted(false);
-    setGameComplete(false);
-    setFinalGuess('');
-    setFinalGuessId(null);
-    setRemainingCount(0);
-    gameEngine.resetGame();
+    setGameState(null);
   };
 
-  const startGame = () => {
-    setGameStarted(true);
-    gameEngine.initializeGame();
-    updateGameState();
-  };
-
-  const getAnswerEmoji = (answer: Answer) => {
-    switch (answer) {
-      case 'yes':
-        return '✅';
-      case 'no':
-        return '❌';
-      case 'unknown':
-        return '🤷';
+  // Auto-scroll to current question when it changes
+  useEffect(() => {
+    if (gameState?.currentQuestion && currentQuestionRef.current) {
+      setTimeout(() => {
+        currentQuestionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 100);
     }
-  };
+  }, [gameState?.currentQuestion]);
 
-  const getAnswerText = (answer: Answer) => {
-    switch (answer) {
-      case 'yes':
-        return 'Yes';
-      case 'no':
-        return 'No';
-      case 'unknown':
-        return "I Don't Know";
+  // Auto-scroll to result when game completes
+  useEffect(() => {
+    if (gameState?.gameComplete && resultRef.current) {
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 100);
     }
-  };
+  }, [gameState?.gameComplete]);
 
-  const getPokemonImageUrl = (pokemonId: number, pokemonName: string) => {
-    // Use the local cached images from the public directory
+  const getPokemonImageUrl = (
+    pokemonId: number,
+    pokemonName: string
+  ): string => {
     return `/images/pokemon/${pokemonId.toString()}-${pokemonName}/official-artwork.png`;
   };
 
-  const formatPokemonName = (name: string) => {
-    return name.charAt(0).toUpperCase() + name.slice(1);
-  };
-
-  if (!gameStarted) {
+  if (isLoading) {
     return (
       <div className="app">
-        <div className="game-container">
-          <div className="header">
-            <h1>🎮 Pokémon 20 Questions</h1>
-            <p className="subtitle">
-              Think of any Pokémon, and I'll try to guess it!
-            </p>
+        <div className="container">
+          <div className="loading-card">
+            <h1>🔄 Loading Pokemon Data...</h1>
+            <p>Please wait while we load all Pokemon information.</p>
+            <div className="loading-spinner"></div>
           </div>
+        </div>
+      </div>
+    );
+  }
 
+  if (error) {
+    return (
+      <div className="app">
+        <div className="container">
+          <div className="error-card">
+            <h1>❌ Error</h1>
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.reload();
+              }}
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!gameStarted || !gameState) {
+    return (
+      <div className="app">
+        <div className="container">
           <div className="start-screen">
+            <h1>🎮 Pokémon 20 Questions</h1>
             <div className="instructions">
-              <h2>How to Play:</h2>
-              <ol>
-                <li>Think of any Pokémon in your mind</li>
-                <li>Answer my questions with Yes, No, or I Don't Know</li>
+              <p>
+                Think of any Pokémon, and I'll try to guess it in 20 questions
+                or less!
+              </p>
+              <p>Answer each question with:</p>
+              <ul>
                 <li>
-                  I'll try to guess your Pokémon using smart questions about
-                  weight!
+                  <strong>Yes</strong> - if the answer is definitely yes
                 </li>
-              </ol>
+                <li>
+                  <strong>No</strong> - if the answer is definitely no
+                </li>
+                <li>
+                  <strong>I Don't Know</strong> - if you're unsure
+                </li>
+              </ul>
             </div>
-
-            <button type="button" className="start-button" onClick={startGame}>
+            <button
+              type="button"
+              className="start-button"
+              onClick={() => {
+                void startGame();
+              }}
+            >
               Start Game
             </button>
           </div>
@@ -162,63 +162,55 @@ function App() {
 
   return (
     <div className="app">
-      <div className="game-container">
-        <div className="header">
+      <div className="container">
+        <div className="game-header">
           <h1>🎮 Pokémon 20 Questions</h1>
-          <div className="progress">
+          <div className="progress-info">
+            <span>Question {gameState.answers.length + 1} of 20</span>
+            <span>•</span>
             <span>
-              Question {(answeredQuestions.length + 1).toString()} of 20
+              {gameEngine.getRemainingCount()} possibilities remaining
             </span>
-            <div className="progress-info">
-              <span>Remaining possibilities: {remainingCount.toString()}</span>
-            </div>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{
-                  width: `${(
-                    ((answeredQuestions.length + 1) / 20) *
-                    100
-                  ).toString()}%`,
-                }}
-              ></div>
-            </div>
+          </div>
+          <div className="progress-bar">
+            <div
+              className="progress-fill"
+              style={{
+                width: `${(((gameState.answers.length + 1) / 20) * 100).toString()}%`,
+              }}
+            ></div>
           </div>
         </div>
 
-        <div className="questions-list">
-          {/* Previous questions (grayed out) */}
-          {answeredQuestions.map((qa, index) => (
-            <div
-              key={`question-${qa.question.replace(/\s+/g, '-').toLowerCase()}-${qa.answer}`}
-              className="question-card answered"
-            >
+        <div className="questions-container">
+          {gameState.answers.map((answer, index) => (
+            <div key={answer.question.text} className="question-card answered">
               <div className="question-header">
-                <span className="question-number">
-                  Q{(index + 1).toString()}
-                </span>
-                <span className="answer-badge">
-                  {getAnswerEmoji(qa.answer)} {getAnswerText(qa.answer)}
+                <span className="question-number">Q{index + 1}</span>
+                <span className={`answer-badge ${answer.response}`}>
+                  {answer.response === 'yes'
+                    ? '✅ Yes'
+                    : answer.response === 'no'
+                      ? '❌ No'
+                      : "❓ I Don't Know"}
                 </span>
               </div>
-              <h3 className="question-text">{qa.question}</h3>
+              <p className="question-text">{answer.question.text}</p>
             </div>
           ))}
 
-          {/* Current question (interactive) */}
-          {currentQuestion && !gameComplete && (
+          {gameState.currentQuestion && !gameState.gameComplete && (
             <div ref={currentQuestionRef} className="question-card current">
               <div className="question-header">
                 <span className="question-number">
-                  Q{(answeredQuestions.length + 1).toString()}
+                  Q{gameState.answers.length + 1}
                 </span>
               </div>
-              <h2 className="question-text">{currentQuestion}</h2>
-
+              <p className="question-text">{gameState.currentQuestion.text}</p>
               <div className="answer-buttons">
                 <button
                   type="button"
-                  className="answer-btn yes-btn"
+                  className="answer-button yes"
                   onClick={() => {
                     handleAnswer('yes');
                   }}
@@ -227,7 +219,7 @@ function App() {
                 </button>
                 <button
                   type="button"
-                  className="answer-btn no-btn"
+                  className="answer-button no"
                   onClick={() => {
                     handleAnswer('no');
                   }}
@@ -236,78 +228,71 @@ function App() {
                 </button>
                 <button
                   type="button"
-                  className="answer-btn unknown-btn"
+                  className="answer-button unknown"
                   onClick={() => {
                     handleAnswer('unknown');
                   }}
                 >
-                  🤷 I Don't Know
+                  ❓ I Don't Know
                 </button>
               </div>
             </div>
           )}
 
-          {/* Game result (when complete) */}
-          {gameComplete && finalGuess && finalGuessId && (
-            <div ref={gameResultRef} className="game-result">
-              <div className="result-header">
-                <h2>🎉 I think your Pokémon is...</h2>
-              </div>
-              <div className="pokemon-guess">
-                <div className="pokemon-image">
+          {gameState.gameComplete && gameState.guessedPokemon && (
+            <div ref={resultRef} className="result-card">
+              <h2>🎯 My Guess!</h2>
+              <div className="pokemon-result">
+                <div className="pokemon-image-container">
                   <img
-                    src={getPokemonImageUrl(finalGuessId, finalGuess)}
-                    alt={formatPokemonName(finalGuess)}
+                    src={getPokemonImageUrl(
+                      gameState.guessedPokemon.id,
+                      gameState.guessedPokemon.name
+                    )}
+                    alt={gameState.guessedPokemon.name}
+                    className="pokemon-image"
                     onError={e => {
-                      // If the local image fails, replace with a text placeholder
                       const target = e.target as HTMLImageElement;
-                      const container = target.parentElement;
-                      if (container) {
-                        container.innerHTML = `
-                          <div class="image-placeholder">
-                            <div class="placeholder-text">
-                              <span class="pokemon-icon">🎮</span>
-                              <span class="pokemon-name-fallback">${formatPokemonName(finalGuess)}</span>
-                            </div>
-                          </div>
-                        `;
-                      }
+                      target.style.display = 'none';
+                      const placeholder =
+                        target.nextElementSibling as HTMLElement | null;
+                      placeholder?.style.setProperty('display', 'flex');
                     }}
                   />
+                  <div
+                    className="image-placeholder"
+                    style={{ display: 'none' }}
+                  >
+                    <span className="pokemon-icon">🎮</span>
+                    <span className="pokemon-name-fallback">
+                      {gameState.guessedPokemon.name.charAt(0).toUpperCase() +
+                        gameState.guessedPokemon.name.slice(1)}
+                    </span>
+                  </div>
                 </div>
-                <div className="pokemon-name">
-                  <h3>{formatPokemonName(finalGuess)}</h3>
-                  <p>#{finalGuessId.toString().padStart(3, '0')}</p>
+                <div className="pokemon-info">
+                  <h3>
+                    {gameState.guessedPokemon.name.charAt(0).toUpperCase() +
+                      gameState.guessedPokemon.name.slice(1)}
+                  </h3>
+                  <p className="pokemon-number">
+                    #{gameState.guessedPokemon.id.toString().padStart(3, '0')}
+                  </p>
+                  <p className="game-stats">
+                    Solved in {gameState.answers.length} question
+                    {gameState.answers.length !== 1 ? 's' : ''}!
+                  </p>
                 </div>
               </div>
-              <div className="result-stats">
-                <p>
-                  I used <strong>{answeredQuestions.length}</strong> questions
-                  to find your Pokémon!
-                </p>
-                <p>Binary search on weight is pretty efficient! 🧠</p>
-              </div>
+              <button
+                type="button"
+                className="play-again-button"
+                onClick={resetGame}
+              >
+                🎮 Play Again
+              </button>
             </div>
           )}
-
-          {/* No guess found */}
-          {gameComplete && !finalGuess && (
-            <div ref={gameResultRef} className="game-result">
-              <div className="result-header">
-                <h2>🤔 Hmm...</h2>
-              </div>
-              <div className="no-guess">
-                <p>I couldn't narrow it down to a single Pokémon.</p>
-                <p>Let's try again with a different approach!</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="game-controls">
-          <button type="button" className="reset-button" onClick={resetGame}>
-            🔄 {gameComplete ? 'Play Again' : 'Reset Game'}
-          </button>
         </div>
       </div>
     </div>

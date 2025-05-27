@@ -53,17 +53,21 @@ export interface PokemonSprites {
   versions?: Record<string, unknown>;
 }
 
+// Complete Pokemon data structure from PokeAPI
 export interface Pokemon {
   id: number;
   name: string;
-  weight: number; // in hectograms (1/10 kg)
-  height: number; // in decimeters (1/10 m)
-  types: {
-    slot: number;
-    type: {
+  height: number; // in decimeters
+  weight: number; // in hectograms
+  base_experience: number;
+  species: NamedAPIResource;
+  abilities: {
+    ability: {
       name: string;
       url: string;
     };
+    is_hidden: boolean;
+    slot: number;
   }[];
   stats: {
     base_stat: number;
@@ -73,40 +77,14 @@ export interface Pokemon {
       url: string;
     };
   }[];
-  abilities: {
-    ability: {
+  types: {
+    slot: number;
+    type: {
       name: string;
       url: string;
     };
-    is_hidden: boolean;
-    slot: number;
   }[];
-  base_experience: number;
-  forms: NamedAPIResource[];
-  game_indices: {
-    game_index: number;
-    version: NamedAPIResource;
-  }[];
-  held_items: {
-    item: NamedAPIResource;
-    version_details: {
-      rarity: number;
-      version: NamedAPIResource;
-    }[];
-  }[];
-  location_area_encounters: string;
-  moves: {
-    move: NamedAPIResource;
-    version_group_details: {
-      level_learned_at: number;
-      move_learn_method: NamedAPIResource;
-      version_group: NamedAPIResource;
-    }[];
-  }[];
-  species: NamedAPIResource;
   sprites: PokemonSprites;
-  order: number;
-  is_default: boolean;
 }
 
 // Pokemon Species types
@@ -266,31 +244,39 @@ export interface PokemonImages {
   imageFiles: ImageFile[];
 }
 
-export type Answer = 'yes' | 'no' | 'unknown';
+export type AnswerResponse = 'yes' | 'no' | 'unknown';
+
+export interface AnsweredQuestion {
+  response: AnswerResponse;
+  question: Question;
+}
 
 export interface Question {
-  id: string;
   text: string;
-  type: 'weight' | 'height' | 'type' | 'stat' | 'ability' | 'generation';
-  parameter?: string | number;
+  type: 'weight' | 'type' | 'stat' | 'ability' | 'height';
+  value?: number;
+  stringValue?: string;
 }
 
 export interface GameState {
-  possiblePokemon: Pokemon[];
-  askedQuestions: {
-    question: Question;
-    answer: Answer;
-  }[];
   currentQuestion: Question | null;
-  isComplete: boolean;
+  answers: AnsweredQuestion[];
+  possiblePokemon: SimplePokemon[];
+  gameComplete: boolean;
   guessedPokemon: Pokemon | null;
 }
 
-// Simplified Pokemon type for game logic - only includes fields we actually use
+// Simplified Pokemon for game logic
 export interface SimplePokemon {
   id: number;
   name: string;
-  weight: number; // in hectograms (1/10 kg)
+  weight: number;
+}
+
+// Pokemon list entry from pokemon-list.json
+export interface PokemonListEntry {
+  name: string;
+  url: string;
 }
 
 // Full Pokemon type from PokeAPI (for future use)

@@ -45,24 +45,25 @@ class PokemonDataFetcher {
 
         return (await response.json()) as T;
       } catch (error) {
-        console.error(`Attempt ${String(attempt)} failed for ${url}:`, error);
-
+        console.error(
+          `Attempt ${String(attempt)} failed for ${url}:`,
+          error instanceof Error ? error.message : String(error)
+        );
         if (attempt === maxRetries) {
           throw error;
         }
-
-        // Exponential backoff
-        await this.delay(1000 * Math.pow(2, attempt - 1));
+        await this.delay(1000 * attempt); // Exponential backoff
       }
     }
-    throw new Error('All retry attempts failed');
+
+    throw new Error(
+      `Failed to fetch ${url} after ${String(maxRetries)} attempts`
+    );
   }
 
   private async saveToFile(data: unknown, filePath: string): Promise<void> {
-    const dir = path.dirname(filePath);
-    await this.ensureDirectoryExists(dir);
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    console.log(`Saved: ${filePath}`);
+    await this.ensureDirectoryExists(path.dirname(filePath));
+    await fs.writeFile(filePath, JSON.stringify(data, null, 2));
   }
 
   private async fileExists(filePath: string): Promise<boolean> {
@@ -84,30 +85,26 @@ class PokemonDataFetcher {
         return true;
       }
 
-      console.log(`Downloading image: ${imageUrl}`);
-      const response = await fetch(imageUrl);
+      await this.ensureDirectoryExists(path.dirname(localPath));
 
+      const response = await fetch(imageUrl);
       if (!response.ok) {
         console.warn(
-          `Failed to download image: ${imageUrl} (${String(response.status)})`
+          `Failed to download image: ${imageUrl} (${response.status.toString()})`
         );
         return false;
       }
 
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const buffer = await response.arrayBuffer();
+      await fs.writeFile(localPath, new Uint8Array(buffer));
 
-      // Ensure directory exists
-      const dir = path.dirname(localPath);
-      await this.ensureDirectoryExists(dir);
-
-      // Save image
-      await fs.writeFile(localPath, buffer);
-      console.log(`Saved image: ${localPath}`);
-
+      console.log(`Downloaded: ${path.basename(localPath)}`);
       return true;
     } catch (error) {
-      console.error(`Error downloading image ${imageUrl}:`, error);
+      console.error(
+        `Error downloading image ${imageUrl}:`,
+        error instanceof Error ? error.message : String(error)
+      );
       return false;
     }
   }
@@ -376,7 +373,10 @@ class PokemonDataFetcher {
           );
         }
       } catch (error) {
-        console.error(`Failed to fetch data for ${pokemon.name}:`, error);
+        console.error(
+          `Failed to fetch data for ${pokemon.name}:`,
+          error instanceof Error ? error.message : String(error)
+        );
         // Continue with the next Pokémon instead of stopping
       }
     }
@@ -433,7 +433,10 @@ class PokemonDataFetcher {
 
         await this.delay(DELAY_BETWEEN_REQUESTS);
       } catch (error) {
-        console.error(`Failed to fetch ${endpoint} list:`, error);
+        console.error(
+          `Failed to fetch ${endpoint} list:`,
+          error instanceof Error ? error.message : String(error)
+        );
       }
     }
   }
@@ -472,7 +475,10 @@ class PokemonDataFetcher {
             );
           }
         } catch (error) {
-          console.error(`Failed to fetch associated data for ${file}:`, error);
+          console.error(
+            `Failed to fetch associated data for ${file}:`,
+            error instanceof Error ? error.message : String(error)
+          );
           // Continue with the next Pokémon instead of stopping
         }
       }
@@ -520,7 +526,10 @@ class PokemonDataFetcher {
             );
           }
         } catch (error) {
-          console.error(`Failed to download images for ${file}:`, error);
+          console.error(
+            `Failed to download images for ${file}:`,
+            error instanceof Error ? error.message : String(error)
+          );
           // Continue with the next Pokémon instead of stopping
         }
       }
@@ -782,7 +791,10 @@ async function main(): Promise<void> {
         break;
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error(
+      'Error:',
+      error instanceof Error ? error.message : String(error)
+    );
     process.exit(1);
   }
 }

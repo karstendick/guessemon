@@ -519,3 +519,256 @@
   font-size: 1.1rem;
   line-height: 1.5;
 }
+
+/* Loading and Error States */
+.loading-card, .error-card {
+  background: white;
+  border-radius: 20px;
+  padding: 3rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 2rem auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-card button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.error-card button:hover {
+  background: #5a67d8;
+}
+
+/* Update existing styles */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.game-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.questions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.answer-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 140px;
+}
+
+.answer-button.yes {
+  background: #48bb78;
+  color: white;
+}
+
+.answer-button.yes:hover {
+  background: #38a169;
+  transform: translateY(-2px);
+}
+
+.answer-button.no {
+  background: #f56565;
+  color: white;
+}
+
+.answer-button.no:hover {
+  background: #e53e3e;
+  transform: translateY(-2px);
+}
+
+.answer-button.unknown {
+  background: #ed8936;
+  color: white;
+}
+
+.answer-button.unknown:hover {
+  background: #dd6b20;
+  transform: translateY(-2px);
+}
+
+.answer-badge.yes {
+  background: #48bb78;
+  color: white;
+}
+
+.answer-badge.no {
+  background: #f56565;
+  color: white;
+}
+
+.answer-badge.unknown {
+  background: #ed8936;
+  color: white;
+}
+
+.result-card {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  border: 3px solid #48bb78;
+}
+
+.pokemon-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.pokemon-image-container {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.pokemon-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 10px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.image-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  color: white;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.pokemon-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.pokemon-name-fallback {
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+.pokemon-info h3 {
+  font-size: 2rem;
+  margin: 0;
+  color: #2d3748;
+}
+
+.pokemon-number {
+  font-size: 1.2rem;
+  color: #666;
+  margin: 0.5rem 0;
+}
+
+.game-stats {
+  font-size: 1.1rem;
+  color: #48bb78;
+  font-weight: 600;
+  margin: 1rem 0;
+}
+
+.play-again-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 15px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.play-again-button:hover {
+  background: #5a67d8;
+  transform: translateY(-2px);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .pokemon-result {
+    flex-direction: column;
+  }
+  
+  .pokemon-image-container {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .answer-buttons {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .answer-button {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .progress-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
