@@ -3,8 +3,11 @@ import type {
   AnsweredQuestion,
   GameState,
   Question,
+  EliminationExplanation,
+  EliminationReason,
 } from './types/pokemon';
 import { loadSimplePokemon, getPokemonById } from './dataLoaderOptimized';
+import { capitalize } from './utils';
 
 interface QuestionStrategy {
   type: Question['type'];
@@ -259,7 +262,7 @@ export class PokemonGameEngine {
           if (!bestType) return null;
 
           return {
-            text: `Is your Pokémon a ${bestType.charAt(0).toUpperCase() + bestType.slice(1)} type?`,
+            text: `Is your Pokémon a ${capitalize(bestType)} type?`,
             type: 'type',
             stringValue: bestType,
           };
@@ -318,7 +321,7 @@ export class PokemonGameEngine {
             genNames[bestGen] || `Generation ${bestGen.toString()}`;
 
           return {
-            text: `Is your Pokémon from ${genName}?`,
+            text: `Is your Pokémon from ${capitalize(genName)}?`,
             type: 'generation',
             value: bestGen,
           };
@@ -507,7 +510,7 @@ export class PokemonGameEngine {
           if (!bestWeakness) return null;
 
           return {
-            text: `Is your Pokémon weak to ${bestWeakness.charAt(0).toUpperCase() + bestWeakness.slice(1)} attacks?`,
+            text: `Is your Pokémon weak to ${capitalize(bestWeakness)} attacks?`,
             type: 'weakness',
             stringValue: bestWeakness,
           };
@@ -556,7 +559,7 @@ export class PokemonGameEngine {
           if (!bestStrength) return null;
 
           return {
-            text: `Is your Pokémon strong against ${bestStrength.charAt(0).toUpperCase() + bestStrength.slice(1)} types?`,
+            text: `Is your Pokémon strong against ${capitalize(bestStrength)} types?`,
             type: 'strength',
             stringValue: bestStrength,
           };
@@ -605,7 +608,7 @@ export class PokemonGameEngine {
           if (!bestColor) return null;
 
           return {
-            text: `Is your Pokémon primarily ${bestColor}?`,
+            text: `Is your Pokémon primarily ${capitalize(bestColor)}?`,
             type: 'color',
             stringValue: bestColor,
           };
@@ -890,5 +893,218 @@ export class PokemonGameEngine {
   // Check if game is complete
   isGameComplete(): boolean {
     return this.gameState.gameComplete;
+  }
+
+  // New method to explain why a specific Pokémon was eliminated
+  explainWhyPokemonWasEliminated(pokemonName: string): EliminationExplanation {
+    // Find the Pokemon in the full list
+    const targetPokemon = this.allPokemon.find(
+      p => p.name.toLowerCase() === pokemonName.toLowerCase()
+    );
+
+    if (!targetPokemon) {
+      return {
+        found: false,
+        eliminatedBy: [],
+      };
+    }
+
+    const eliminatedBy: EliminationReason[] = [];
+    const strategies = this.getQuestionStrategies();
+
+    // Go through each answered question and check if it would eliminate the target Pokemon
+    for (const answeredQuestion of this.gameState.answers) {
+      const { question, response } = answeredQuestion;
+
+      // Skip "unknown" answers as they don't filter
+      if (response === 'unknown') {
+        continue;
+      }
+
+      const strategy = strategies.find(s => s.type === question.type);
+      if (!strategy) continue;
+
+      // Check if this question/answer combination would eliminate the target Pokemon
+      // We do this by creating a single-Pokemon array and seeing if it gets filtered out
+      const singlePokemonArray = [targetPokemon];
+      const filteredResult = strategy.filterPokemon(
+        singlePokemonArray,
+        question,
+        response
+      );
+
+      // If the target Pokemon was filtered out, this question eliminated it
+      if (filteredResult.length === 0) {
+        let reason = '';
+        const pokemonName = capitalize(targetPokemon.name);
+
+        switch (question.type) {
+          case 'weight': {
+            const weightKg = (question.value ?? 0) / 10;
+            const pokemonWeightKg = targetPokemon.weight / 10;
+            if (response === 'yes') {
+              reason = `${pokemonName} weighs ${pokemonWeightKg.toString()}kg, which is not heavier than ${weightKg.toString()}kg`;
+            } else {
+              reason = `${pokemonName} weighs ${pokemonWeightKg.toString()}kg, which is heavier than ${weightKg.toString()}kg`;
+            }
+            break;
+          }
+
+          case 'height': {
+            const heightM = (question.value ?? 0) / 10;
+            const pokemonHeightM = targetPokemon.height / 10;
+            if (response === 'yes') {
+              reason = `${pokemonName} is ${pokemonHeightM.toString()}m tall, which is not taller than ${heightM.toString()}m`;
+            } else {
+              reason = `${pokemonName} is ${pokemonHeightM.toString()}m tall, which is taller than ${heightM.toString()}m`;
+            }
+            break;
+          }
+
+          case 'type': {
+            const targetType = question.stringValue ?? '';
+            if (response === 'yes') {
+              reason = `${pokemonName} is not a ${targetType} type (it's ${targetPokemon.types.join('/')})`;
+            } else {
+              reason = `${pokemonName} is a ${targetType} type, but you said it wasn't`;
+            }
+            break;
+          }
+
+          case 'generation': {
+            const targetGen = question.value ?? 0;
+            const genNames = [
+              '',
+              'Kanto',
+              'Johto',
+              'Hoenn',
+              'Sinnoh',
+              'Unova',
+              'Kalos',
+              'Alola',
+              'Galar',
+              'Paldea',
+            ];
+            const targetGenName =
+              genNames[targetGen] ?? `Generation ${targetGen.toString()}`;
+            const pokemonGenName =
+              genNames[targetPokemon.generation] ??
+              `Generation ${targetPokemon.generation.toString()}`;
+            if (response === 'yes') {
+              reason = `${pokemonName} is from ${pokemonGenName}, not ${targetGenName}`;
+            } else {
+              reason = `${pokemonName} is from ${targetGenName}, but you said it wasn't`;
+            }
+            break;
+          }
+
+          case 'legendary':
+            if (response === 'yes') {
+              reason = `${pokemonName} is not legendary`;
+            } else {
+              reason = `${pokemonName} is legendary, but you said it wasn't`;
+            }
+            break;
+
+          case 'mythical':
+            if (response === 'yes') {
+              reason = `${pokemonName} is not mythical`;
+            } else {
+              reason = `${pokemonName} is mythical, but you said it wasn't`;
+            }
+            break;
+
+          case 'baby':
+            if (response === 'yes') {
+              reason = `${pokemonName} is not a baby Pokémon`;
+            } else {
+              reason = `${pokemonName} is a baby Pokémon, but you said it wasn't`;
+            }
+            break;
+
+          case 'evolution': {
+            const evolutionType = question.stringValue;
+            if (evolutionType === 'isEvolved') {
+              if (response === 'yes') {
+                reason = `${pokemonName} has not evolved from another Pokémon`;
+              } else {
+                reason = `${pokemonName} has evolved from another Pokémon, but you said it hadn't`;
+              }
+            } else if (evolutionType === 'hasEvolution') {
+              if (response === 'yes') {
+                reason = `${pokemonName} cannot evolve into another Pokémon`;
+              } else {
+                reason = `${pokemonName} can evolve into another Pokémon, but you said it couldn't`;
+              }
+            }
+            break;
+          }
+
+          case 'weakness': {
+            const targetWeakness = question.stringValue ?? '';
+            if (response === 'yes') {
+              reason = `${pokemonName} is not weak to ${targetWeakness} attacks`;
+            } else {
+              reason = `${pokemonName} is weak to ${targetWeakness} attacks, but you said it wasn't`;
+            }
+            break;
+          }
+
+          case 'strength': {
+            const targetStrength = question.stringValue ?? '';
+            if (response === 'yes') {
+              reason = `${pokemonName} is not strong against ${targetStrength} types`;
+            } else {
+              reason = `${pokemonName} is strong against ${targetStrength} types, but you said it wasn't`;
+            }
+            break;
+          }
+
+          case 'color': {
+            const targetColor = question.stringValue ?? '';
+            if (response === 'yes') {
+              reason = `${pokemonName} is not primarily ${targetColor} (it's ${targetPokemon.color})`;
+            } else {
+              reason = `${pokemonName} is primarily ${targetColor}, but you said it wasn't`;
+            }
+            break;
+          }
+
+          default:
+            reason =
+              'This question eliminated your Pokémon based on the answer given';
+        }
+
+        eliminatedBy.push({
+          question: question.text,
+          answer: response,
+          reason: reason,
+        });
+      }
+    }
+
+    return {
+      found: true,
+      pokemon: targetPokemon,
+      eliminatedBy: eliminatedBy,
+    };
+  }
+
+  // Get all Pokemon names for autocomplete/search
+  getAllPokemonNames(): string[] {
+    return this.allPokemon.map(p => capitalize(p.name));
+  }
+
+  // Get detailed Pokemon data for suggestions with images
+  getAllPokemonForSuggestions(): {
+    id: number;
+    name: string;
+    displayName: string;
+  }[] {
+    return this.allPokemon.map(p => ({
+      id: p.id,
+      name: p.name,
+      displayName: capitalize(p.name),
+    }));
   }
 }

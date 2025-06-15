@@ -302,4 +302,15 @@ export interface PokemonListEntry {
   url: string;
 }
 
-// Full Pokemon type from PokeAPI (for future use)
+// New type for elimination explanations
+export interface EliminationReason {
+  question: string;
+  answer: 'yes' | 'no' | 'unknown';
+  reason: string;
+}
+
+export interface EliminationExplanation {
+  found: boolean;
+  pokemon?: SimplePokemon;
+  eliminatedBy: EliminationReason[];
+}
