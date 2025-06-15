@@ -1114,17 +1114,17 @@
     flex-direction: column;
     align-items: center;
   }
-  
+
   .elimination-question {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
-  
+
   .elimination-question strong {
     min-width: unset;
   }
-  
+
   .elimination-answer {
     align-self: flex-end;
   }
