@@ -22,7 +22,13 @@ jobs:
       - name: Remove preview folder
         run: |
           BRANCH_NAME="${{ github.event.ref }}"
-          PREVIEW_DIR="pr-preview/${BRANCH_NAME}"
+          # Sanitize branch name (replace / with -)
+          SANITIZED_NAME="${BRANCH_NAME//\//-}"
+          PREVIEW_DIR="pr-preview/${SANITIZED_NAME}"
+
+          echo "Original branch name: ${BRANCH_NAME}"
+          echo "Sanitized branch name: ${SANITIZED_NAME}"
+          echo "Preview directory: ${PREVIEW_DIR}"
 
           if [ -d "$PREVIEW_DIR" ]; then
             echo "Removing preview folder: $PREVIEW_DIR"
