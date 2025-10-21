@@ -922,7 +922,7 @@
   align-items: flex-start;
   margin-top: 1rem;
   overflow-x: auto;
-  padding: 1rem 0;
+  padding: 1rem;
 }
 
 .evolution-node {
