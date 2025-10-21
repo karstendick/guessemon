@@ -275,7 +275,7 @@ export interface GameState {
   answers: AnsweredQuestion[];
   possiblePokemon: SimplePokemon[];
   gameComplete: boolean;
-  guessedPokemon: Pokemon | null;
+  guessedPokemon: SimplePokemon | null;
 }
 
 // Simplified Pokemon for game logic

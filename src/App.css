@@ -730,6 +730,191 @@
   margin: 1rem 0;
 }
 
+/* Pokemon Details Sections */
+.pokemon-details {
+  width: 100%;
+  max-width: 600px;
+  margin: 1.5rem auto;
+  text-align: left;
+}
+
+.detail-section {
+  background: #f7fafc;
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.detail-section h4 {
+  font-size: 1rem;
+  color: #4a5568;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 0.9rem;
+}
+
+.detail-value {
+  color: #4a5568;
+  font-size: 0.9rem;
+}
+
+/* Type Badges */
+.type-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.type-badge {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.type-badge.small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+}
+
+/* Pokemon Type Colors */
+.type-normal {
+  background: #a8a878;
+}
+.type-fire {
+  background: #f08030;
+}
+.type-water {
+  background: #6890f0;
+}
+.type-electric {
+  background: #f8d030;
+  color: #2d3748;
+}
+.type-grass {
+  background: #78c850;
+}
+.type-ice {
+  background: #98d8d8;
+}
+.type-fighting {
+  background: #c03028;
+}
+.type-poison {
+  background: #a040a0;
+}
+.type-ground {
+  background: #e0c068;
+}
+.type-flying {
+  background: #a890f0;
+}
+.type-psychic {
+  background: #f85888;
+}
+.type-bug {
+  background: #a8b820;
+}
+.type-rock {
+  background: #b8a038;
+}
+.type-ghost {
+  background: #705898;
+}
+.type-dragon {
+  background: #7038f8;
+}
+.type-dark {
+  background: #705848;
+}
+.type-steel {
+  background: #b8b8d0;
+}
+.type-fairy {
+  background: #ee99ac;
+}
+
+/* Classification Badges */
+.classification-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.classification-badge {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.classification-badge.legendary {
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  color: #2d3748;
+}
+
+.classification-badge.mythical {
+  background: linear-gradient(135deg, #9f7aea 0%, #b794f4 100%);
+}
+
+.classification-badge.baby {
+  background: linear-gradient(135deg, #fc8181 0%, #feb2b2 100%);
+}
+
+/* Type Effectiveness */
+.effectiveness-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.effectiveness-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.effectiveness-label {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 0.9rem;
+}
+
 .play-again-button {
   background: #667eea;
   color: white;
@@ -775,6 +960,31 @@
   .progress-info {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .pokemon-details {
+    max-width: 100%;
+  }
+
+  .detail-section {
+    padding: 0.75rem 1rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .detail-section h4 {
+    font-size: 0.9rem;
+  }
+
+  .type-badges {
+    justify-content: center;
+  }
+
+  .effectiveness-container {
+    gap: 0.75rem;
   }
 }
 

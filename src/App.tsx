@@ -61,8 +61,8 @@ function App() {
     }
   };
 
-  const handleAnswer = async (response: 'yes' | 'no' | 'unknown') => {
-    await gameEngine.answerQuestion(response);
+  const handleAnswer = (response: 'yes' | 'no' | 'unknown') => {
+    gameEngine.answerQuestion(response);
     setGameState(gameEngine.getGameState());
   };
 
@@ -160,6 +160,33 @@ function App() {
     return buildUrl(
       `/images/pokemon/${pokemonId.toString()}-${pokemonName}/official-artwork.png`
     );
+  };
+
+  // Helper functions for formatting Pokemon data
+  const formatHeight = (decimeters: number): string => {
+    const meters = decimeters / 10;
+    return `${meters.toFixed(1)} m`;
+  };
+
+  const formatWeight = (hectograms: number): string => {
+    const kg = hectograms / 10;
+    return `${kg.toFixed(1)} kg`;
+  };
+
+  const getRegionName = (generation: number): string => {
+    const regionNames = [
+      '', // index 0 unused
+      'Kanto', // Gen 1
+      'Johto', // Gen 2
+      'Hoenn', // Gen 3
+      'Sinnoh', // Gen 4
+      'Unova', // Gen 5
+      'Kalos', // Gen 6
+      'Alola', // Gen 7
+      'Galar', // Gen 8
+      'Paldea', // Gen 9
+    ];
+    return regionNames[generation] || `Generation ${generation.toString()}`;
   };
 
   if (isLoading) {
@@ -296,7 +323,7 @@ function App() {
                   type="button"
                   className="answer-button yes"
                   onClick={() => {
-                    void handleAnswer('yes');
+                    handleAnswer('yes');
                   }}
                 >
                   ✅ Yes
@@ -305,7 +332,7 @@ function App() {
                   type="button"
                   className="answer-button no"
                   onClick={() => {
-                    void handleAnswer('no');
+                    handleAnswer('no');
                   }}
                 >
                   ❌ No
@@ -314,7 +341,7 @@ function App() {
                   type="button"
                   className="answer-button unknown"
                   onClick={() => {
-                    void handleAnswer('unknown');
+                    handleAnswer('unknown');
                   }}
                 >
                   ❓ I Don't Know
@@ -358,6 +385,140 @@ function App() {
                   <p className="pokemon-number">
                     #{gameState.guessedPokemon.id.toString().padStart(3, '0')}
                   </p>
+
+                  <div className="pokemon-details">
+                    <div className="detail-section">
+                      <h4>Physical Attributes</h4>
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <span className="detail-label">Height:</span>
+                          <span className="detail-value">
+                            {formatHeight(gameState.guessedPokemon.height)}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Weight:</span>
+                          <span className="detail-value">
+                            {formatWeight(gameState.guessedPokemon.weight)}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Color:</span>
+                          <span className="detail-value">
+                            {capitalize(gameState.guessedPokemon.color)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Type</h4>
+                      <div className="type-badges">
+                        {gameState.guessedPokemon.types.map((type, index) => (
+                          <span
+                            key={`type-${index.toString()}`}
+                            className={`type-badge type-${type}`}
+                          >
+                            {capitalize(type)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Region & Classification</h4>
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <span className="detail-label">Region:</span>
+                          <span className="detail-value">
+                            {getRegionName(gameState.guessedPokemon.generation)}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Generation:</span>
+                          <span className="detail-value">
+                            {gameState.guessedPokemon.generation}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="classification-badges">
+                        {gameState.guessedPokemon.isLegendary && (
+                          <span className="classification-badge legendary">
+                            Legendary
+                          </span>
+                        )}
+                        {gameState.guessedPokemon.isMythical && (
+                          <span className="classification-badge mythical">
+                            Mythical
+                          </span>
+                        )}
+                        {gameState.guessedPokemon.isBaby && (
+                          <span className="classification-badge baby">
+                            Baby
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Evolution</h4>
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <span className="detail-label">Can Evolve:</span>
+                          <span className="detail-value">
+                            {gameState.guessedPokemon.hasEvolution
+                              ? 'Yes'
+                              : 'No'}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Is Evolved:</span>
+                          <span className="detail-value">
+                            {gameState.guessedPokemon.isEvolved ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Type Effectiveness</h4>
+                      <div className="effectiveness-container">
+                        <div className="effectiveness-group">
+                          <span className="effectiveness-label">Weak to:</span>
+                          <div className="type-badges">
+                            {gameState.guessedPokemon.weaknesses.map(
+                              (weakness, index) => (
+                                <span
+                                  key={`weakness-${index.toString()}`}
+                                  className={`type-badge type-${weakness} small`}
+                                >
+                                  {capitalize(weakness)}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                        <div className="effectiveness-group">
+                          <span className="effectiveness-label">
+                            Strong against:
+                          </span>
+                          <div className="type-badges">
+                            {gameState.guessedPokemon.strengths.map(
+                              (strength, index) => (
+                                <span
+                                  key={`strength-${index.toString()}`}
+                                  className={`type-badge type-${strength} small`}
+                                >
+                                  {capitalize(strength)}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <p className="game-stats">
                     Solved in {gameState.answers.length} question
                     {gameState.answers.length !== 1 ? 's' : ''}!
