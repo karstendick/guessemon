@@ -8,6 +8,58 @@ import type {
 import { buildUrl, capitalize } from './utils';
 import './App.css';
 
+interface EvolutionNode {
+  pokemon: SimplePokemon;
+  evolutions: EvolutionNode[];
+}
+
+// Helper function to get Pokemon image URL
+const getPokemonImageUrl = (id: number, name: string): string => {
+  return buildUrl(`/pokemon-images/${id.toString()}-${name}.png`);
+};
+
+// Recursive component to render evolution tree nodes
+const EvolutionTreeNode: React.FC<{
+  node: EvolutionNode;
+  currentPokemonId: number;
+}> = ({ node, currentPokemonId }) => {
+  const isCurrent = node.pokemon.id === currentPokemonId;
+  const hasEvolutions = node.evolutions.length > 0;
+
+  return (
+    <div className="evolution-node">
+      <div className={`evolution-stage ${isCurrent ? 'current' : ''}`}>
+        <div className="evolution-image">
+          <img
+            src={getPokemonImageUrl(node.pokemon.id, node.pokemon.name)}
+            alt={node.pokemon.name}
+            onError={e => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
+        </div>
+        <div className="evolution-name">{capitalize(node.pokemon.name)}</div>
+      </div>
+
+      {hasEvolutions && (
+        <>
+          <div className="evolution-arrow">→</div>
+          <div className="evolution-branches">
+            {node.evolutions.map(evolution => (
+              <EvolutionTreeNode
+                key={evolution.pokemon.id}
+                node={evolution}
+                currentPokemonId={currentPokemonId}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 function App() {
   const [gameEngine] = useState(() => new PokemonGameEngine());
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -193,9 +245,7 @@ function App() {
     return regionNames[generation] || `Generation ${generation.toString()}`;
   };
 
-  const getEvolutionChain = (
-    pokemon: SimplePokemon
-  ): SimplePokemon[] | null => {
+  const getEvolutionTree = (pokemon: SimplePokemon): EvolutionNode | null => {
     if (!pokemon.evolutionChainId || !gameState) {
       return null;
     }
@@ -226,26 +276,16 @@ function App() {
       return null;
     }
 
-    // Build the chain by following the evolution path
-    const chain: SimplePokemon[] = [basePokemon];
-    let current = basePokemon;
+    // Recursively build the evolution tree
+    const buildTree = (current: SimplePokemon): EvolutionNode => {
+      const evolutions = evolutionMap.get(current.name) ?? [];
+      return {
+        pokemon: current,
+        evolutions: evolutions.map(evo => buildTree(evo)),
+      };
+    };
 
-    while (chain.length <= 10) {
-      const nextEvolutions = evolutionMap.get(current.name) ?? [];
-      if (nextEvolutions.length === 0) {
-        break; // No more evolutions
-      }
-
-      // For branching evolutions, pick the one in our chain
-      // or just take the first one
-      const nextInChain =
-        nextEvolutions.find(p => p.id === pokemon.id) ?? nextEvolutions[0];
-
-      chain.push(nextInChain);
-      current = nextInChain;
-    }
-
-    return chain;
+    return buildTree(basePokemon);
   };
 
   if (isLoading) {
@@ -522,44 +562,16 @@ function App() {
                     <div className="detail-section">
                       <h4>Evolution</h4>
                       {(() => {
-                        const evolutionChain = getEvolutionChain(
+                        const evolutionTree = getEvolutionTree(
                           gameState.guessedPokemon
                         );
-                        if (evolutionChain && evolutionChain.length > 1) {
+                        if (evolutionTree) {
                           return (
-                            <div className="evolution-chain">
-                              {evolutionChain.map((evo, index) => (
-                                <React.Fragment key={evo.id}>
-                                  {index > 0 && (
-                                    <div className="evolution-arrow">→</div>
-                                  )}
-                                  <div
-                                    className={`evolution-stage ${
-                                      evo.id === gameState.guessedPokemon?.id
-                                        ? 'current'
-                                        : ''
-                                    }`}
-                                  >
-                                    <div className="evolution-image">
-                                      <img
-                                        src={getPokemonImageUrl(
-                                          evo.id,
-                                          evo.name
-                                        )}
-                                        alt={evo.name}
-                                        onError={e => {
-                                          const target =
-                                            e.target as HTMLImageElement;
-                                          target.style.display = 'none';
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="evolution-name">
-                                      {capitalize(evo.name)}
-                                    </div>
-                                  </div>
-                                </React.Fragment>
-                              ))}
+                            <div className="evolution-tree">
+                              <EvolutionTreeNode
+                                node={evolutionTree}
+                                currentPokemonId={gameState.guessedPokemon.id}
+                              />
                             </div>
                           );
                         } else {

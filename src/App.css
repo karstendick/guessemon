@@ -915,14 +915,32 @@
   font-size: 0.9rem;
 }
 
-/* Evolution Chain */
-.evolution-chain {
+/* Evolution Tree */
+.evolution-tree {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin-top: 1rem;
+  overflow-x: auto;
+  padding: 1rem 0;
+}
+
+.evolution-node {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 1rem;
-  margin-top: 1rem;
-  flex-wrap: wrap;
+}
+
+.evolution-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+/* When there's only one evolution, keep it horizontal */
+.evolution-branches:has(> .evolution-node:only-child) {
+  flex-direction: row;
 }
 
 .evolution-stage {
@@ -964,12 +982,15 @@
   color: #2d3748;
   font-size: 0.85rem;
   text-align: center;
+  word-break: break-word;
+  max-width: 100px;
 }
 
 .evolution-arrow {
   font-size: 1.5rem;
   color: #a0aec0;
   font-weight: bold;
+  flex-shrink: 0;
 }
 
 .evolution-none {
@@ -1049,6 +1070,29 @@
 
   .effectiveness-container {
     gap: 0.75rem;
+  }
+
+  .evolution-tree {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .evolution-stage {
+    min-width: 90px;
+  }
+
+  .evolution-image {
+    width: 70px;
+    height: 70px;
+  }
+
+  .evolution-name {
+    font-size: 0.75rem;
+    max-width: 90px;
+  }
+
+  .evolution-arrow {
+    font-size: 1.2rem;
   }
 }
 
