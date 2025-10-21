@@ -15,7 +15,9 @@ interface EvolutionNode {
 
 // Helper function to get Pokemon image URL
 const getPokemonImageUrl = (id: number, name: string): string => {
-  return buildUrl(`/pokemon-images/${id.toString()}-${name}.png`);
+  return buildUrl(
+    `/images/pokemon/${id.toString()}-${name}/official-artwork.png`
+  );
 };
 
 // Recursive component to render evolution tree nodes
@@ -208,15 +210,6 @@ function App() {
       }, 100);
     }
   }, [gameState?.gameComplete]);
-
-  const getPokemonImageUrl = (
-    pokemonId: number,
-    pokemonName: string
-  ): string => {
-    return buildUrl(
-      `/images/pokemon/${pokemonId.toString()}-${pokemonName}/official-artwork.png`
-    );
-  };
 
   // Helper functions for formatting Pokemon data
   const formatHeight = (decimeters: number): string => {
