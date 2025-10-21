@@ -1066,6 +1066,11 @@ export class PokemonGameEngine {
     return this.allPokemon.map(p => capitalize(p.name));
   }
 
+  // Get all Pokemon data
+  getAllPokemon(): SimplePokemon[] {
+    return this.allPokemon;
+  }
+
   // Get detailed Pokemon data for suggestions with images
   getAllPokemonForSuggestions(): {
     id: number;

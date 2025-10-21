@@ -1,6 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PokemonGameEngine } from './gameEngine';
-import type { GameState, EliminationExplanation } from './types/pokemon';
+import type {
+  GameState,
+  EliminationExplanation,
+  SimplePokemon,
+} from './types/pokemon';
 import { buildUrl, capitalize } from './utils';
 import './App.css';
 
@@ -187,6 +191,61 @@ function App() {
       'Paldea', // Gen 9
     ];
     return regionNames[generation] || `Generation ${generation.toString()}`;
+  };
+
+  const getEvolutionChain = (
+    pokemon: SimplePokemon
+  ): SimplePokemon[] | null => {
+    if (!pokemon.evolutionChainId || !gameState) {
+      return null;
+    }
+
+    // Get all Pokemon from the game engine
+    const allPokemon = gameEngine.getAllPokemon();
+
+    // Find all Pokemon in the same evolution chain
+    const chainPokemon = allPokemon.filter(
+      p => p.evolutionChainId === pokemon.evolutionChainId
+    );
+
+    if (chainPokemon.length <= 1) {
+      return null; // No evolution chain to show
+    }
+
+    // Build a map of evolvesFromSpecies to Pokemon
+    const evolutionMap = new Map<string | null, SimplePokemon[]>();
+    chainPokemon.forEach(p => {
+      const from = p.evolvesFromSpecies;
+      const existingList = evolutionMap.get(from) ?? [];
+      evolutionMap.set(from, [...existingList, p]);
+    });
+
+    // Find the base Pokemon (the one that doesn't evolve from anything)
+    const basePokemon = evolutionMap.get(null)?.[0];
+    if (!basePokemon) {
+      return null;
+    }
+
+    // Build the chain by following the evolution path
+    const chain: SimplePokemon[] = [basePokemon];
+    let current = basePokemon;
+
+    while (chain.length <= 10) {
+      const nextEvolutions = evolutionMap.get(current.name) ?? [];
+      if (nextEvolutions.length === 0) {
+        break; // No more evolutions
+      }
+
+      // For branching evolutions, pick the one in our chain
+      // or just take the first one
+      const nextInChain =
+        nextEvolutions.find(p => p.id === pokemon.id) ?? nextEvolutions[0];
+
+      chain.push(nextInChain);
+      current = nextInChain;
+    }
+
+    return chain;
   };
 
   if (isLoading) {
@@ -462,22 +521,55 @@ function App() {
 
                     <div className="detail-section">
                       <h4>Evolution</h4>
-                      <div className="detail-grid">
-                        <div className="detail-item">
-                          <span className="detail-label">Can Evolve:</span>
-                          <span className="detail-value">
-                            {gameState.guessedPokemon.hasEvolution
-                              ? 'Yes'
-                              : 'No'}
-                          </span>
-                        </div>
-                        <div className="detail-item">
-                          <span className="detail-label">Is Evolved:</span>
-                          <span className="detail-value">
-                            {gameState.guessedPokemon.isEvolved ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const evolutionChain = getEvolutionChain(
+                          gameState.guessedPokemon
+                        );
+                        if (evolutionChain && evolutionChain.length > 1) {
+                          return (
+                            <div className="evolution-chain">
+                              {evolutionChain.map((evo, index) => (
+                                <React.Fragment key={evo.id}>
+                                  {index > 0 && (
+                                    <div className="evolution-arrow">→</div>
+                                  )}
+                                  <div
+                                    className={`evolution-stage ${
+                                      evo.id === gameState.guessedPokemon?.id
+                                        ? 'current'
+                                        : ''
+                                    }`}
+                                  >
+                                    <div className="evolution-image">
+                                      <img
+                                        src={getPokemonImageUrl(
+                                          evo.id,
+                                          evo.name
+                                        )}
+                                        alt={evo.name}
+                                        onError={e => {
+                                          const target =
+                                            e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="evolution-name">
+                                      {capitalize(evo.name)}
+                                    </div>
+                                  </div>
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="evolution-none">
+                              Does not evolve
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
 
                     <div className="detail-section">

@@ -294,6 +294,8 @@ export interface SimplePokemon {
   color: string;
   weaknesses: string[];
   strengths: string[];
+  evolutionChainId: number | null;
+  evolvesFromSpecies: string | null;
 }
 
 // Pokemon list entry from pokemon-list.json
