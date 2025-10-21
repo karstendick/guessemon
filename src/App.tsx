@@ -1,8 +1,66 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PokemonGameEngine } from './gameEngine';
-import type { GameState, EliminationExplanation } from './types/pokemon';
+import type {
+  GameState,
+  EliminationExplanation,
+  SimplePokemon,
+} from './types/pokemon';
 import { buildUrl, capitalize } from './utils';
 import './App.css';
+
+interface EvolutionNode {
+  pokemon: SimplePokemon;
+  evolutions: EvolutionNode[];
+}
+
+// Helper function to get Pokemon image URL
+const getPokemonImageUrl = (id: number, name: string): string => {
+  return buildUrl(
+    `/images/pokemon/${id.toString()}-${name}/official-artwork.png`
+  );
+};
+
+// Recursive component to render evolution tree nodes
+const EvolutionTreeNode: React.FC<{
+  node: EvolutionNode;
+  currentPokemonId: number;
+}> = ({ node, currentPokemonId }) => {
+  const isCurrent = node.pokemon.id === currentPokemonId;
+  const hasEvolutions = node.evolutions.length > 0;
+
+  return (
+    <div className="evolution-node">
+      <div className={`evolution-stage ${isCurrent ? 'current' : ''}`}>
+        <div className="evolution-image">
+          <img
+            src={getPokemonImageUrl(node.pokemon.id, node.pokemon.name)}
+            alt={node.pokemon.name}
+            onError={e => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+            }}
+          />
+        </div>
+        <div className="evolution-name">{capitalize(node.pokemon.name)}</div>
+      </div>
+
+      {hasEvolutions && (
+        <>
+          <div className="evolution-arrow">→</div>
+          <div className="evolution-branches">
+            {node.evolutions.map(evolution => (
+              <EvolutionTreeNode
+                key={evolution.pokemon.id}
+                node={evolution}
+                currentPokemonId={currentPokemonId}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 function App() {
   const [gameEngine] = useState(() => new PokemonGameEngine());
@@ -61,8 +119,8 @@ function App() {
     }
   };
 
-  const handleAnswer = async (response: 'yes' | 'no' | 'unknown') => {
-    await gameEngine.answerQuestion(response);
+  const handleAnswer = (response: 'yes' | 'no' | 'unknown') => {
+    gameEngine.answerQuestion(response);
     setGameState(gameEngine.getGameState());
   };
 
@@ -153,13 +211,74 @@ function App() {
     }
   }, [gameState?.gameComplete]);
 
-  const getPokemonImageUrl = (
-    pokemonId: number,
-    pokemonName: string
-  ): string => {
-    return buildUrl(
-      `/images/pokemon/${pokemonId.toString()}-${pokemonName}/official-artwork.png`
+  // Helper functions for formatting Pokemon data
+  const formatHeight = (decimeters: number): string => {
+    const meters = decimeters / 10;
+    return `${meters.toFixed(1)} m`;
+  };
+
+  const formatWeight = (hectograms: number): string => {
+    const kg = hectograms / 10;
+    return `${kg.toFixed(1)} kg`;
+  };
+
+  const getRegionName = (generation: number): string => {
+    const regionNames = [
+      '', // index 0 unused
+      'Kanto', // Gen 1
+      'Johto', // Gen 2
+      'Hoenn', // Gen 3
+      'Sinnoh', // Gen 4
+      'Unova', // Gen 5
+      'Kalos', // Gen 6
+      'Alola', // Gen 7
+      'Galar', // Gen 8
+      'Paldea', // Gen 9
+    ];
+    return regionNames[generation] || `Generation ${generation.toString()}`;
+  };
+
+  const getEvolutionTree = (pokemon: SimplePokemon): EvolutionNode | null => {
+    if (!pokemon.evolutionChainId || !gameState) {
+      return null;
+    }
+
+    // Get all Pokemon from the game engine
+    const allPokemon = gameEngine.getAllPokemon();
+
+    // Find all Pokemon in the same evolution chain
+    const chainPokemon = allPokemon.filter(
+      p => p.evolutionChainId === pokemon.evolutionChainId
     );
+
+    if (chainPokemon.length <= 1) {
+      return null; // No evolution chain to show
+    }
+
+    // Build a map of evolvesFromSpecies to Pokemon
+    const evolutionMap = new Map<string | null, SimplePokemon[]>();
+    chainPokemon.forEach(p => {
+      const from = p.evolvesFromSpecies;
+      const existingList = evolutionMap.get(from) ?? [];
+      evolutionMap.set(from, [...existingList, p]);
+    });
+
+    // Find the base Pokemon (the one that doesn't evolve from anything)
+    const basePokemon = evolutionMap.get(null)?.[0];
+    if (!basePokemon) {
+      return null;
+    }
+
+    // Recursively build the evolution tree
+    const buildTree = (current: SimplePokemon): EvolutionNode => {
+      const evolutions = evolutionMap.get(current.name) ?? [];
+      return {
+        pokemon: current,
+        evolutions: evolutions.map(evo => buildTree(evo)),
+      };
+    };
+
+    return buildTree(basePokemon);
   };
 
   if (isLoading) {
@@ -296,7 +415,7 @@ function App() {
                   type="button"
                   className="answer-button yes"
                   onClick={() => {
-                    void handleAnswer('yes');
+                    handleAnswer('yes');
                   }}
                 >
                   ✅ Yes
@@ -305,7 +424,7 @@ function App() {
                   type="button"
                   className="answer-button no"
                   onClick={() => {
-                    void handleAnswer('no');
+                    handleAnswer('no');
                   }}
                 >
                   ❌ No
@@ -314,7 +433,7 @@ function App() {
                   type="button"
                   className="answer-button unknown"
                   onClick={() => {
-                    void handleAnswer('unknown');
+                    handleAnswer('unknown');
                   }}
                 >
                   ❓ I Don't Know
@@ -358,6 +477,145 @@ function App() {
                   <p className="pokemon-number">
                     #{gameState.guessedPokemon.id.toString().padStart(3, '0')}
                   </p>
+
+                  <div className="pokemon-details">
+                    <div className="detail-section">
+                      <h4>Physical Attributes</h4>
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <span className="detail-label">Height:</span>
+                          <span className="detail-value">
+                            {formatHeight(gameState.guessedPokemon.height)}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Weight:</span>
+                          <span className="detail-value">
+                            {formatWeight(gameState.guessedPokemon.weight)}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Color:</span>
+                          <span className="detail-value">
+                            {capitalize(gameState.guessedPokemon.color)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Type</h4>
+                      <div className="type-badges">
+                        {gameState.guessedPokemon.types.map((type, index) => (
+                          <span
+                            key={`type-${index.toString()}`}
+                            className={`type-badge type-${type}`}
+                          >
+                            {capitalize(type)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Region & Classification</h4>
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <span className="detail-label">Region:</span>
+                          <span className="detail-value">
+                            {getRegionName(gameState.guessedPokemon.generation)}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Generation:</span>
+                          <span className="detail-value">
+                            {gameState.guessedPokemon.generation}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="classification-badges">
+                        {gameState.guessedPokemon.isLegendary && (
+                          <span className="classification-badge legendary">
+                            Legendary
+                          </span>
+                        )}
+                        {gameState.guessedPokemon.isMythical && (
+                          <span className="classification-badge mythical">
+                            Mythical
+                          </span>
+                        )}
+                        {gameState.guessedPokemon.isBaby && (
+                          <span className="classification-badge baby">
+                            Baby
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Evolution</h4>
+                      {(() => {
+                        const evolutionTree = getEvolutionTree(
+                          gameState.guessedPokemon
+                        );
+                        if (evolutionTree) {
+                          return (
+                            <div className="evolution-tree">
+                              <EvolutionTreeNode
+                                node={evolutionTree}
+                                currentPokemonId={gameState.guessedPokemon.id}
+                              />
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="evolution-none">
+                              Does not evolve
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+
+                    <div className="detail-section">
+                      <h4>Type Effectiveness</h4>
+                      <div className="effectiveness-container">
+                        <div className="effectiveness-group">
+                          <span className="effectiveness-label">Weak to:</span>
+                          <div className="type-badges">
+                            {gameState.guessedPokemon.weaknesses.map(
+                              (weakness, index) => (
+                                <span
+                                  key={`weakness-${index.toString()}`}
+                                  className={`type-badge type-${weakness} small`}
+                                >
+                                  {capitalize(weakness)}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                        <div className="effectiveness-group">
+                          <span className="effectiveness-label">
+                            Strong against:
+                          </span>
+                          <div className="type-badges">
+                            {gameState.guessedPokemon.strengths.map(
+                              (strength, index) => (
+                                <span
+                                  key={`strength-${index.toString()}`}
+                                  className={`type-badge type-${strength} small`}
+                                >
+                                  {capitalize(strength)}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <p className="game-stats">
                     Solved in {gameState.answers.length} question
                     {gameState.answers.length !== 1 ? 's' : ''}!

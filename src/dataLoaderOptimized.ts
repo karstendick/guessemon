@@ -112,6 +112,8 @@ export async function loadMinimalPokemon(): Promise<SimplePokemon[]> {
         color: pokemon.color,
         weaknesses,
         strengths,
+        evolutionChainId: pokemon.evolution_chain_id,
+        evolvesFromSpecies: pokemon.evolves_from_species,
       };
 
       simplePokemon.push(simplePokemonEntry);

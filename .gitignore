@@ -26,6 +26,9 @@ data/
 *.sln
 *.sw?
 
+# Claude Code
+.claude/
+
 # Large aggregated data files (too big for GitHub)
 public/api/v2/aggregated/all-pokemon.json
 public/api/v2/aggregated/all-species.json

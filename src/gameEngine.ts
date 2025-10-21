@@ -6,7 +6,7 @@ import type {
   EliminationExplanation,
   EliminationReason,
 } from './types/pokemon';
-import { loadSimplePokemon, getPokemonById } from './dataLoaderOptimized';
+import { loadSimplePokemon } from './dataLoaderOptimized';
 import { capitalize } from './utils';
 
 interface QuestionStrategy {
@@ -66,7 +66,7 @@ export class PokemonGameEngine {
 
     this.usedQuestionTypes.clear();
     this.askedQuestions.clear(); // Clear previously asked questions
-    await this.generateNextQuestion();
+    this.generateNextQuestion();
   }
 
   // Question strategies for different types
@@ -632,14 +632,14 @@ export class PokemonGameEngine {
   }
 
   // Generate the next question using the best available strategy
-  private async generateNextQuestion(): Promise<void> {
+  private generateNextQuestion(): void {
     if (this.gameState.possiblePokemon.length <= 1) {
-      await this.completeGame();
+      this.completeGame();
       return;
     }
 
     if (this.gameState.answers.length >= 20) {
-      await this.completeGame();
+      this.completeGame();
       return;
     }
 
@@ -785,12 +785,12 @@ export class PokemonGameEngine {
     } else {
       // Fallback: if we really can't find any good questions, just complete the game
       console.log('Could not generate any valid questions, completing game');
-      await this.completeGame();
+      this.completeGame();
     }
   }
 
   // Process an answer and update the game state
-  async answerQuestion(response: 'yes' | 'no' | 'unknown'): Promise<void> {
+  answerQuestion(response: 'yes' | 'no' | 'unknown'): void {
     if (!this.gameState.currentQuestion || this.gameState.gameComplete) {
       return;
     }
@@ -836,47 +836,18 @@ export class PokemonGameEngine {
     }
 
     // Generate next question or complete game
-    await this.generateNextQuestion();
+    this.generateNextQuestion();
   }
 
   // Complete the game and make a guess
-  private async completeGame(): Promise<void> {
+  private completeGame(): void {
     this.gameState.gameComplete = true;
     this.gameState.currentQuestion = null; // Clear the current question
 
     if (this.gameState.possiblePokemon.length > 0) {
       // Pick the first remaining Pokemon as our guess
-      const guessedSimple = this.gameState.possiblePokemon[0];
-      try {
-        this.gameState.guessedPokemon = await getPokemonById(guessedSimple.id);
-      } catch (error) {
-        console.error('Failed to load guessed Pokemon details:', error);
-        // Fallback: create a minimal Pokemon object from SimplePokemon data
-        this.gameState.guessedPokemon = {
-          id: guessedSimple.id,
-          name: guessedSimple.name,
-          height: guessedSimple.height,
-          weight: guessedSimple.weight,
-          base_experience: 0,
-          species: { name: guessedSimple.name, url: '' },
-          abilities: [],
-          stats: [],
-          types: guessedSimple.types.map((type, index) => ({
-            slot: index + 1,
-            type: { name: type, url: '' },
-          })),
-          sprites: {
-            back_default: null,
-            back_female: null,
-            back_shiny: null,
-            back_shiny_female: null,
-            front_default: null,
-            front_female: null,
-            front_shiny: null,
-            front_shiny_female: null,
-          },
-        };
-      }
+      // Use SimplePokemon directly since it has all the data we need
+      this.gameState.guessedPokemon = this.gameState.possiblePokemon[0];
     }
   }
 
@@ -1093,6 +1064,11 @@ export class PokemonGameEngine {
   // Get all Pokemon names for autocomplete/search
   getAllPokemonNames(): string[] {
     return this.allPokemon.map(p => capitalize(p.name));
+  }
+
+  // Get all Pokemon data
+  getAllPokemon(): SimplePokemon[] {
+    return this.allPokemon;
   }
 
   // Get detailed Pokemon data for suggestions with images

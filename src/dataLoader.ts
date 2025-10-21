@@ -279,6 +279,14 @@ export async function loadSimplePokemon(): Promise<SimplePokemon[]> {
       // Extract color
       const color = species?.color.name ?? 'unknown';
 
+      // Extract evolution chain ID
+      const evolutionChainId = species?.evolution_chain.url
+        ? parseInt(species.evolution_chain.url.split('/').slice(-2, -1)[0], 10)
+        : null;
+
+      // Extract evolves from species
+      const evolvesFromSpecies = species?.evolves_from_species?.name ?? null;
+
       // Create enhanced SimplePokemon object
       const simplePokemon: SimplePokemon = {
         id: pokemon.id,
@@ -295,6 +303,8 @@ export async function loadSimplePokemon(): Promise<SimplePokemon[]> {
         color,
         weaknesses,
         strengths,
+        evolutionChainId,
+        evolvesFromSpecies,
       };
 
       enhancedPokemon.push(simplePokemon);

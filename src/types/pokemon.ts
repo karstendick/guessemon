@@ -275,7 +275,7 @@ export interface GameState {
   answers: AnsweredQuestion[];
   possiblePokemon: SimplePokemon[];
   gameComplete: boolean;
-  guessedPokemon: Pokemon | null;
+  guessedPokemon: SimplePokemon | null;
 }
 
 // Simplified Pokemon for game logic
@@ -294,6 +294,8 @@ export interface SimplePokemon {
   color: string;
   weaknesses: string[];
   strengths: string[];
+  evolutionChainId: number | null;
+  evolvesFromSpecies: string | null;
 }
 
 // Pokemon list entry from pokemon-list.json
