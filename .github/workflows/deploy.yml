@@ -8,20 +8,22 @@ on:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
-  contents: read
+  contents: write # Changed from read to write for PR preview deployments
   pages: write
   id-token: write
+  pull-requests: write # Added to allow commenting on PRs
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: 'pages'
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'pages' }}
   cancel-in-progress: false
 
 jobs:
-  # Build job
+  # Build job for production (main branch)
   build:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,6 +39,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_BASE_PATH: /guessemon/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -46,7 +50,7 @@ jobs:
         with:
           path: ./dist
 
-  # Deployment job
+  # Deployment job for production
   deploy:
     environment:
       name: github-pages
@@ -58,3 +62,71 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Build and deploy PR previews
+  pr-preview:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build PR Preview
+        run: npm run build
+        env:
+          VITE_BASE_PATH: /guessemon/pr-preview/${{ github.head_ref }}/
+
+      - name: Deploy PR Preview to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: pr-preview/${{ github.head_ref }}
+          keep_files: true # Don't delete other preview folders
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const previewUrl = `https://${{ github.repository_owner }}.github.io/guessemon/pr-preview/${{ github.head_ref }}/`;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Preview deployed')
+            );
+
+            const commentBody = `🚀 **Preview deployed!**\n\n✨ Preview URL: ${previewUrl}\n\n_Updated: ${new Date().toUTCString()}_`;
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: commentBody
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: commentBody
+              });
+            }

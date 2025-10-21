@@ -1,0 +1,43 @@
+name: Cleanup PR Preview
+
+on:
+  delete:
+    branches:
+      - '**'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    # Only run if a branch was deleted (not a tag)
+    if: github.event.ref_type == 'branch'
+    steps:
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Remove preview folder
+        run: |
+          BRANCH_NAME="${{ github.event.ref }}"
+          PREVIEW_DIR="pr-preview/${BRANCH_NAME}"
+
+          if [ -d "$PREVIEW_DIR" ]; then
+            echo "Removing preview folder: $PREVIEW_DIR"
+            rm -rf "$PREVIEW_DIR"
+
+            # Configure git
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Commit and push
+            git add .
+            git commit -m "Clean up preview for deleted branch: ${BRANCH_NAME}"
+            git push
+
+            echo "✅ Preview cleaned up successfully"
+          else
+            echo "ℹ️ No preview folder found for branch: ${BRANCH_NAME}"
+          fi
